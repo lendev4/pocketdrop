@@ -85,11 +85,12 @@
     const results = await Uploads.enqueue(list, items, expiry.value, options);
     await ShareStore.clear();
     preview.replaceChildren();
-    status.textContent = results.includes("sent")
-      ? "Sent ✓"
-      : results.includes("handed-off")
-        ? "Continue in PairDrop."
-        : "Nothing was sent.";
+    // Back to the list, unless PairDrop still needs this tab's user.
+    if (results.includes("handed-off")) {
+      status.textContent = results.includes("sent") ? "Sent ✓ The rest continues in PairDrop." : "Continue in PairDrop.";
+    } else {
+      location.replace(results.includes("sent") ? "/?sent" : "/");
+    }
   };
 
   sendButton.disabled = false;

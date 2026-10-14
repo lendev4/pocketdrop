@@ -50,7 +50,12 @@ let clearArmed = null;
 document.addEventListener("click", async (event) => {
   const target = event.target;
 
-  if (target.closest("[data-close-pair]")) document.getElementById("pair")?.replaceChildren();
+  // The panel replaced the placeholder, so put an empty placeholder back.
+  if (target.closest("[data-close-pair]")) {
+    const placeholder = document.createElement("div");
+    placeholder.id = "pair";
+    document.getElementById("pair")?.replaceWith(placeholder);
+  }
 
   // Closes the header menu after choosing an entry.
   if (target.closest("[data-close-menu]")) target.closest("details")?.removeAttribute("open");
@@ -141,6 +146,16 @@ new MutationObserver(() => {
     setTimeout(() => li.classList.remove("fresh"), 2500);
   }
 }).observe(document.body, { childList: true, subtree: true });
+
+// "Sent ✓" after arriving from the share screen.
+if (new URLSearchParams(location.search).has("sent")) {
+  history.replaceState(null, "", "/");
+  const toast = document.createElement("p");
+  toast.className = "toast";
+  toast.textContent = "Sent ✓";
+  document.body.append(toast);
+  setTimeout(() => toast.remove(), 2500);
+}
 
 // A share kept on the phone but never sent, e.g. after logging in again.
 (async () => {

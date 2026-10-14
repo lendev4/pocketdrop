@@ -230,3 +230,19 @@ button.armed { color: var(--danger); border-color: var(--danger); }
 .pair-panel p { margin: 0; }
 .qr { width: 15rem; max-width: 100%; height: auto; border-radius: 0.5rem; background: #fff; padding: 0.5rem; }
 .pair-url { font-size: 0.75rem; overflow-wrap: anywhere; color: var(--muted); }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+  animation: toast-in 0.2s ease-out;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 0.5rem); } }
