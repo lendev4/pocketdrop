@@ -124,7 +124,8 @@ pub async fn expiry_select(cx: &Cx, id: &str) -> Result<impl View> {
 #[page]
 async fn home(cx: &Cx) -> Result<impl View> {
     auth::require(cx)?;
-    let max_file = config(cx).max_file_bytes.to_string();
+    let config = config(cx);
+    let max_file = config.max_file_bytes.to_string();
 
     Ok(view! {
         shell(title: "PocketDrop",
@@ -145,7 +146,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
             </p>
 
             // Works as a plain form; upload.js adds progress, drag-and-drop and paste.
-            <form id="send-form" class="send" method="POST" action="/drops" enctype="multipart/form-data" data-max-file=(max_file)>
+            <form id="send-form" class="send" method="POST" action="/drops" enctype="multipart/form-data" data-max-file=(max_file) data-pairdrop=(config.pairdrop_url.clone())>
                 <textarea name="text" placeholder="Text or link to drop… (or paste / drop files anywhere)"></textarea>
                 <div class="send-row">
                     <label class="file-pick">
@@ -159,7 +160,12 @@ async fn home(cx: &Cx) -> Result<impl View> {
 
             // Opens the live stream; every change replaces #drops.
             <div data-init="@get('/events')"></div>
-            ui::drop_list(drops: store(cx).list(), total_bytes: store(cx).total_bytes(), max_total_bytes: config(cx).max_total_bytes)
+            ui::drop_list(
+                drops: store(cx).list(),
+                total_bytes: store(cx).total_bytes(),
+                max_total_bytes: config.max_total_bytes,
+                pairdrop_url: config.pairdrop_url.clone(),
+            )
         )
     })
 }

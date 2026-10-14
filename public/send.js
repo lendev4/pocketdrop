@@ -10,7 +10,7 @@
   const expiry = document.getElementById("share-expiry");
   const status = document.getElementById("share-status");
   const list = document.getElementById("uploads");
-  const maxFileBytes = Number(section.dataset.maxFile) || 0;
+  const options = { maxFileBytes: Number(section.dataset.maxFile) || 0, pairdropUrl: section.dataset.pairdrop };
 
   const readAuto = () => {
     try {
@@ -75,10 +75,14 @@
     sendButton.disabled = true;
     expiry.disabled = true;
     status.textContent = "";
-    const results = await Uploads.enqueue(list, items, expiry.value, maxFileBytes);
+    const results = await Uploads.enqueue(list, items, expiry.value, options);
     await ShareStore.clear();
     preview.replaceChildren();
-    status.textContent = results.includes("sent") ? "Sent ✓" : "Nothing was sent.";
+    status.textContent = results.includes("sent")
+      ? "Sent ✓"
+      : results.includes("handed-off")
+        ? "Continue in PairDrop."
+        : "Nothing was sent.";
   };
 
   sendButton.disabled = false;

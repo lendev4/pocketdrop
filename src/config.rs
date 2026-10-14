@@ -10,6 +10,8 @@ pub struct Config {
     pub max_file_bytes: u64,
     /// Cap on everything stored, text and files together.
     pub max_total_bytes: u64,
+    /// Direct-transfer service offered for files over the size limit.
+    pub pairdrop_url: String,
 }
 
 impl Config {
@@ -33,6 +35,7 @@ impl Config {
             max_text_bytes: parse_env("MAX_TEXT_BYTES", "1048576"),
             max_file_bytes: parse_env("MAX_FILE_BYTES", "104857600"),
             max_total_bytes: parse_env("MAX_TOTAL_BYTES", "2147483648"),
+            pairdrop_url: env::var("PAIRDROP_URL").unwrap_or_else(|_| "https://pairdrop.net/".to_owned()),
         }
     }
 

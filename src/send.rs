@@ -12,11 +12,12 @@ use crate::{auth, config, expiry_select, shell};
 #[page]
 async fn page(cx: &Cx) -> Result<impl View> {
     auth::require(cx)?;
-    let max_file = config(cx).max_file_bytes.to_string();
+    let config = config(cx);
+    let max_file = config.max_file_bytes.to_string();
 
     Ok(view! {
         shell(title: "Send · PocketDrop",
-            <section id="share" class="send" data-max-file=(max_file)>
+            <section id="share" class="send" data-max-file=(max_file) data-pairdrop=(config.pairdrop_url.clone())>
                 <h1>"Send to PocketDrop"</h1>
                 <div id="share-preview"><p class="muted">"Loading the shared content…"</p></div>
                 <div class="send-row">

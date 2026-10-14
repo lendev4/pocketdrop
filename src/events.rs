@@ -48,8 +48,11 @@ async fn wait_for_change(rx: &mut broadcast::Receiver<()>) -> bool {
 async fn render_list(cx: &Cx) -> Result<Event> {
     let store = store(cx);
     let (list, total_bytes) = (store.list(), store.total_bytes());
-    let max_total_bytes = config(cx).max_total_bytes;
-    let html = view! { cx => ui::drop_list(drops: list, total_bytes: total_bytes, max_total_bytes: max_total_bytes) }
+    let config = config(cx);
+    let (max_total_bytes, pairdrop_url) = (config.max_total_bytes, config.pairdrop_url.clone());
+    let html = view! { cx =>
+        ui::drop_list(drops: list, total_bytes: total_bytes, max_total_bytes: max_total_bytes, pairdrop_url: pairdrop_url)
+    }
         .single()
         .await?;
     Ok(PatchElements::new(html.render(cx)).into())

@@ -39,14 +39,46 @@ self.Uploads = (() => {
   }
 
   /**
-   * Uploads items ({ text } or { file }) into the given list element.
-   * Resolves once every item has been uploaded (after retries) or removed.
+   * Opens PairDrop in a new tab with the file already loaded. This posts the
+   * file the way Android's share menu does; PairDrop's service worker picks
+   * it up, so PairDrop must have been opened in this browser before.
    */
-  function enqueue(list, items, expiry, maxFileBytes) {
-    return Promise.all(items.map((item) => enqueueOne(list, item, expiry, maxFileBytes)));
+  function openInPairDrop(file, pairdropUrl) {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = pairdropUrl;
+    form.enctype = "multipart/form-data";
+    form.target = "_blank";
+    form.hidden = true;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.name = "allfiles";
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    form.append(input);
+    document.body.append(form);
+    form.submit();
+    setTimeout(() => form.remove(), 1000);
+
+    // Tell the other devices to open PairDrop to receive it.
+    fetch("/drops/handoff", {
+      method: "POST",
+      credentials: "same-origin",
+      body: new URLSearchParams({ name: file.name, size: String(file.size) }),
+    });
   }
 
-  function enqueueOne(list, item, expiry, maxFileBytes) {
+  /**
+   * Uploads items ({ text } or { file }) into the given list element.
+   * options: { maxFileBytes, pairdropUrl }. Resolves once every item has been
+   * uploaded (after retries), handed to PairDrop or removed.
+   */
+  function enqueue(list, items, expiry, options = {}) {
+    return Promise.all(items.map((item) => enqueueOne(list, item, expiry, options)));
+  }
+
+  function enqueueOne(list, item, expiry, { maxFileBytes, pairdropUrl } = {}) {
     const row = document.createElement("li");
     row.className = "upload";
     const label = item.file
@@ -56,6 +88,7 @@ self.Uploads = (() => {
       <div class="upload-row"><span class="upload-name"></span><span class="upload-state"></span></div>
       <progress max="1" value="0"></progress>
       <div class="upload-actions">
+        <button type="button" data-action="pairdrop" hidden>Send with PairDrop</button>
         <button type="button" class="quiet" data-action="retry" hidden>Retry</button>
         <button type="button" class="quiet" data-action="cancel">Cancel</button>
       </div>`;
@@ -64,6 +97,7 @@ self.Uploads = (() => {
     const bar = row.querySelector("progress");
     const retry = row.querySelector('[data-action="retry"]');
     const cancel = row.querySelector('[data-action="cancel"]');
+    const pairdrop = row.querySelector('[data-action="pairdrop"]');
     list.append(row);
 
     return new Promise((resolve) => {
@@ -79,6 +113,7 @@ self.Uploads = (() => {
         row.classList.remove("failed");
         if (item.file && maxFileBytes && item.file.size > maxFileBytes) {
           fail(new Error(`Over the ${formatBytes(maxFileBytes)} limit.`), false);
+          pairdrop.hidden = !pairdropUrl;
           return;
         }
         state.textContent = "Uploading…";
@@ -112,6 +147,14 @@ self.Uploads = (() => {
       };
 
       retry.addEventListener("click", attempt);
+      pairdrop.addEventListener("click", () => {
+        openInPairDrop(item.file, pairdropUrl);
+        row.classList.remove("failed");
+        state.textContent = "Opened in PairDrop: pick your device there.";
+        pairdrop.hidden = true;
+        cancel.textContent = "Dismiss";
+        finish("handed-off");
+      });
       cancel.addEventListener("click", () => {
         if (current) current.cancel();
         row.remove();
@@ -132,11 +175,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const list = document.getElementById("uploads");
   const textarea = form.querySelector("textarea");
   const picker = form.querySelector('input[type="file"]');
-  const maxFileBytes = Number(form.dataset.maxFile) || 0;
+  const options = { maxFileBytes: Number(form.dataset.maxFile) || 0, pairdropUrl: form.dataset.pairdrop };
   const expiry = () => form.querySelector('select[name="expiry"]').value;
 
   const upload = (items) => {
-    if (items.length) Uploads.enqueue(list, items, expiry(), maxFileBytes);
+    if (items.length) Uploads.enqueue(list, items, expiry(), options);
   };
 
   form.addEventListener("submit", (event) => {

@@ -8,7 +8,7 @@ use topcoat::{
     context::Cx,
     router::{
         Body,
-        content::multipart::Multipart,
+        content::{Form, multipart::Multipart},
         error::{not_found, unauthorized},
         path_param,
         request::{headers, uri},
@@ -17,7 +17,9 @@ use topcoat::{
     },
 };
 
-use crate::{auth, ingest::ingest, store, store::FileMeta};
+use serde::Deserialize;
+
+use crate::{auth, config::Expiry, ingest::ingest, store, store::FileMeta};
 
 path_param!(drop_id);
 
@@ -46,6 +48,22 @@ async fn create(cx: &Cx, mut form: Multipart) -> Result<Response> {
         }
     };
     Ok(response)
+}
+
+#[derive(Deserialize)]
+struct HandoffForm {
+    name: String,
+    size: u64,
+}
+
+/// Tells the other devices a file is coming through PairDrop, so they can
+/// open it to receive. The notice disappears after an hour.
+#[route(POST "./handoff")]
+async fn handoff(cx: &Cx, Form(form): Form<HandoffForm>) -> Result<()> {
+    auth::require_api(cx)?;
+    let name: String = form.name.chars().filter(|c| !c.is_control()).take(200).collect();
+    store(cx).add_handoff(name, form.size, Expiry::After(3600)).await?;
+    Ok(())
 }
 
 /// Clear all. Open pages update through the live stream.

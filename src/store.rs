@@ -41,6 +41,9 @@ pub enum Kind {
     Text,
     Link,
     File,
+    /// A notice that a file is coming through a direct-transfer service;
+    /// `file` describes it, but no bytes are stored.
+    Handoff,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -83,8 +86,13 @@ impl Drop {
         self.meta.expiry == Expiry::Once.to_string()
     }
 
+    /// Bytes this drop takes up in storage.
     fn size(&self) -> u64 {
-        self.meta.file.as_ref().map_or(self.text.len() as u64, |file| file.size)
+        match (self.meta.kind, &self.meta.file) {
+            (Kind::File, Some(file)) => file.size,
+            (Kind::Handoff, _) => 0,
+            _ => self.text.len() as u64,
+        }
     }
 }
 
@@ -195,6 +203,20 @@ impl Store {
         Ok(())
     }
 
+    /// Announces a file sent through a direct-transfer service.
+    pub async fn add_handoff(&self, name: String, size: u64, expiry: Expiry) -> io::Result<()> {
+        let file = FileMeta { name, mime: String::new(), size };
+        let meta = new_meta(Kind::Handoff, expiry, "handoff", Some(file));
+        let id = self.new_id();
+        let staging = self.tmp_dir.join(&id);
+        fs::create_dir(&staging).await?;
+        self.publish(&staging, &id, &meta).await?;
+
+        self.lock().push(Drop { id, meta, text: String::new() });
+        self.after_add().await;
+        Ok(())
+    }
+
     pub async fn begin_file(&self) -> io::Result<Upload> {
         let id = self.new_id();
         let dir = self.tmp_dir.join(&id);
@@ -284,7 +306,7 @@ impl Store {
         let now = unix_now();
         self.lock()
             .iter()
-            .find(|drop| drop.id == id && !drop.is_expired(now))
+            .find(|drop| drop.id == id && drop.meta.kind == Kind::File && !drop.is_expired(now))
             .and_then(|drop| drop.meta.file.clone())
             .map(|file| (file, self.drops_dir.join(id).join("content")))
     }
@@ -416,7 +438,7 @@ fn new_meta(kind: Kind, expiry: Expiry, source: &str, file: Option<FileMeta>) ->
 async fn load(dir: &Path, id: String) -> io::Result<Drop> {
     let meta: Meta = serde_json::from_slice(&fs::read(dir.join("meta.json")).await?)?;
     let text = match meta.kind {
-        Kind::File => String::new(),
+        Kind::File | Kind::Handoff => String::new(),
         Kind::Text | Kind::Link => fs::read_to_string(dir.join("content")).await?,
     };
     Ok(Drop { id, meta, text })

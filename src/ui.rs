@@ -28,7 +28,12 @@ fn expires(drop: &Drop, now: u64) -> String {
 
 /// Everything Datastar replaces on a change, matched by its id.
 #[component]
-pub async fn drop_list(drops: Vec<Drop>, total_bytes: u64, max_total_bytes: u64) -> Result<impl View> {
+pub async fn drop_list(
+    drops: Vec<Drop>,
+    total_bytes: u64,
+    max_total_bytes: u64,
+    pairdrop_url: String,
+) -> Result<impl View> {
     let now = unix_now();
     let usage = format!("{} of {} used", Bytes(total_bytes), Bytes(max_total_bytes));
 
@@ -60,6 +65,13 @@ pub async fn drop_list(drops: Vec<Drop>, total_bytes: u64, max_total_bytes: u64)
                                     <span class="muted">(Bytes(file.size).to_string())</span>
                                 </div>
                             }
+                            (Kind::Handoff, Some(file)) => {
+                                <p class="handoff-label">"Incoming via PairDrop"</p>
+                                <div class="file-row">
+                                    <span class="file-name">(file.name.clone())</span>
+                                    <span class="muted">(Bytes(file.size).to_string())</span>
+                                </div>
+                            }
                             (Kind::Link, _) => {
                                 <a class="content" href=(drop.text.trim().to_owned()) target="_blank" rel="noopener noreferrer">(drop.text.clone())</a>
                             }
@@ -73,6 +85,8 @@ pub async fn drop_list(drops: Vec<Drop>, total_bytes: u64, max_total_bytes: u64)
                             <span class="actions">
                                 if drop.meta.kind == Kind::File {
                                     <a class="button" href=(format!("/drops/{}/file", drop.id))>"Download"</a>
+                                } else if drop.meta.kind == Kind::Handoff {
+                                    <a class="button" href=(pairdrop_url.clone()) target="_blank" rel="noopener noreferrer">"Open PairDrop"</a>
                                 } else {
                                     <button class="quiet" data-copy=(drop.text.clone())>"Copy"</button>
                                 }
