@@ -9,7 +9,7 @@ use topcoat::{
     cookie::{Cookie, Cookies, Key, SameSite, signed_cookies, time::Duration},
     router::{
         error::{forbidden, redirect, unauthorized},
-        request::headers,
+        request::{headers, uri},
     },
 };
 
@@ -54,12 +54,23 @@ pub fn is_logged_in(cx: &Cx) -> bool {
         .is_some_and(|issued| unix_now().saturating_sub(issued) < auth.session_days * 86_400)
 }
 
-/// Redirects to the login page unless the request is logged in.
+/// Redirects to the login page unless the request is logged in; after
+/// logging in, the user comes back to this page.
 pub fn require(cx: &Cx) -> Result<()> {
     if is_logged_in(cx) {
-        Ok(())
-    } else {
-        Err(redirect("/login").into())
+        return Ok(());
+    }
+    match uri(cx).path() {
+        "/" => Err(redirect("/login").into()),
+        path => Err(redirect(format!("/login?next={path}")).into()),
+    }
+}
+
+/// A local path to return to after login; anything else falls back to `/`.
+pub fn safe_next(next: Option<&str>) -> &str {
+    match next {
+        Some(path) if path.starts_with('/') && !path.starts_with("//") && !path.contains('\\') => path,
+        _ => "/",
     }
 }
 

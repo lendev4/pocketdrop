@@ -968,9 +968,13 @@ name = "pocketdrop"
 version = "0.1.0"
 dependencies = [
  "futures-util",
+ "http",
+ "http-body",
+ "http-body-util",
  "serde",
  "serde_json",
  "tokio",
+ "tokio-util",
  "topcoat",
 ]
 

@@ -1,34 +1,37 @@
-use serde::Deserialize;
 use topcoat::{
     Result,
     context::Cx,
-    router::{
-        content::Form,
-        error::{SeeOther, content_too_large, see_other},
-        route,
-    },
+    router::page,
+    view::{View, view},
 };
 
-use crate::{auth, config, store};
+use crate::{auth, config, expiry_select, shell};
 
-#[derive(Deserialize)]
-struct SendForm {
-    text: String,
-    expiry: Option<String>,
-}
-
-/// The send box on the main page.
-#[route(POST)]
-async fn send(cx: &Cx, Form(form): Form<SendForm>) -> Result<SeeOther> {
+/// Send screen for Android shares. The service worker keeps the shared
+/// content on the phone and redirects here; send.js shows it and uploads it.
+#[page]
+async fn page(cx: &Cx) -> Result<impl View> {
     auth::require(cx)?;
-    auth::require_same_origin(cx)?;
-    let config = config(cx);
-    if form.text.len() > config.max_text_bytes {
-        return Err(content_too_large().into());
-    }
-    if !form.text.trim().is_empty() {
-        let expiry = config.expiry_or_default(form.expiry.as_deref());
-        store(cx).add_text(form.text, expiry, "browser").await?;
-    }
-    Ok(see_other("/"))
+    let max_file = config(cx).max_file_bytes.to_string();
+
+    Ok(view! {
+        shell(title: "Send · PocketDrop",
+            <section id="share" class="send" data-max-file=(max_file)>
+                <h1>"Send to PocketDrop"</h1>
+                <div id="share-preview"><p class="muted">"Loading the shared content…"</p></div>
+                <div class="send-row">
+                    expiry_select(id: "share-expiry")
+                    <button id="share-send" disabled="true">"Send"</button>
+                </div>
+                <label class="check">
+                    <input type="checkbox" id="share-auto">
+                    " Send right away next time"
+                </label>
+                <ul id="uploads"></ul>
+                <p id="share-status" class="notice-inline"></p>
+                <a href="/">"Open PocketDrop"</a>
+            </section>
+            <script src="/send.js" defer="true"></script>
+        )
+    })
 }

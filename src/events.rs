@@ -12,7 +12,7 @@ use topcoat::{
     view::{ViewExt, view},
 };
 
-use crate::{auth, store, ui};
+use crate::{auth, config, store, ui};
 
 /// Live stream for the main page: sends the full list on connect, then again
 /// after every change. Reconnecting therefore always catches up.
@@ -46,7 +46,11 @@ async fn wait_for_change(rx: &mut broadcast::Receiver<()>) -> bool {
 }
 
 async fn render_list(cx: &Cx) -> Result<Event> {
-    let list = store(cx).list();
-    let html = view! { cx => ui::drop_list(drops: list) }.single().await?;
+    let store = store(cx);
+    let (list, total_bytes) = (store.list(), store.total_bytes());
+    let max_total_bytes = config(cx).max_total_bytes;
+    let html = view! { cx => ui::drop_list(drops: list, total_bytes: total_bytes, max_total_bytes: max_total_bytes) }
+        .single()
+        .await?;
     Ok(PatchElements::new(html.render(cx)).into())
 }

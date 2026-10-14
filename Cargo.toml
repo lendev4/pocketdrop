@@ -7,8 +7,12 @@ publish = false
 
 [dependencies]
 futures-util = "0.3"
+http = "1"
+http-body = "1"
+http-body-util = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio-util = { version = "0.7", features = ["io"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "fs", "time"] }
 # Experimental framework: pin exactly and upgrade on purpose.
 topcoat = { version = "=0.10.0", features = ["datastar", "fs", "multipart", "sse"] }

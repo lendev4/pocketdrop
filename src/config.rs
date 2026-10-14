@@ -7,6 +7,9 @@ pub struct Config {
     pub expiry_options: Vec<Expiry>,
     pub max_drops: usize,
     pub max_text_bytes: usize,
+    pub max_file_bytes: u64,
+    /// Cap on everything stored, text and files together.
+    pub max_total_bytes: u64,
 }
 
 impl Config {
@@ -28,6 +31,8 @@ impl Config {
             expiry_options,
             max_drops: parse_env("MAX_DROPS", "50"),
             max_text_bytes: parse_env("MAX_TEXT_BYTES", "1048576"),
+            max_file_bytes: parse_env("MAX_FILE_BYTES", "104857600"),
+            max_total_bytes: parse_env("MAX_TOTAL_BYTES", "2147483648"),
         }
     }
 
@@ -100,6 +105,30 @@ impl fmt::Display for Expiry {
     }
 }
 
+/// A byte count in words: "512 B", "1.4 MB".
+pub struct Bytes(pub u64);
+
+impl fmt::Display for Bytes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        const UNITS: [&str; 4] = ["KB", "MB", "GB", "TB"];
+        if self.0 < 1024 {
+            return write!(f, "{} B", self.0);
+        }
+        #[expect(clippy::cast_precision_loss, reason = "display only")]
+        let mut value = self.0 as f64 / 1024.0;
+        let mut unit = 0;
+        while value >= 1024.0 && unit < UNITS.len() - 1 {
+            value /= 1024.0;
+            unit += 1;
+        }
+        if value < 10.0 {
+            write!(f, "{value:.1} {}", UNITS[unit])
+        } else {
+            write!(f, "{value:.0} {}", UNITS[unit])
+        }
+    }
+}
+
 /// A span of seconds in words, picking the largest fitting unit: "10 min", "7 days".
 pub struct Duration(pub u64);
 
@@ -128,5 +157,13 @@ mod tests {
         assert!("0h".parse::<Expiry>().is_err());
         assert!("5x".parse::<Expiry>().is_err());
         assert!("".parse::<Expiry>().is_err());
+    }
+
+    #[test]
+    fn bytes_read_naturally() {
+        assert_eq!(Bytes(512).to_string(), "512 B");
+        assert_eq!(Bytes(1536).to_string(), "1.5 KB");
+        assert_eq!(Bytes(25 * 1024 * 1024).to_string(), "25 MB");
+        assert_eq!(Bytes(2 * 1024 * 1024 * 1024).to_string(), "2.0 GB");
     }
 }

@@ -3,6 +3,7 @@ mod config;
 mod drops;
 mod events;
 mod healthz;
+mod ingest;
 mod login;
 mod logout;
 mod send;
@@ -16,7 +17,7 @@ use topcoat::{
     Result,
     context::{Cx, app_context},
     cookie::RouterBuilderCookieExt,
-    router::{RouterBuilderDirectoryExt, module_router, page},
+    router::{BodyLimit, RouterBuilderDirectoryExt, module_router, page},
     view::{Child, View, component, view},
 };
 
@@ -40,8 +41,15 @@ async fn main() {
         }
     });
 
+    // One file per request, plus room for the other form fields.
+    let upload_limit = usize::try_from(config.max_file_bytes).unwrap_or(usize::MAX)
+        .saturating_add(config.max_text_bytes)
+        .saturating_add(64 * 1024);
+
     let router = module_router!()
         .cookies()
+        .layer(BodyLimit::max(upload_limit).at("/drops"))
+        .layer(BodyLimit::max(upload_limit).at("/share"))
         .app_context(auth.key.clone())
         .app_context(auth)
         .app_context(config)
@@ -75,6 +83,8 @@ pub async fn shell(title: &str, #[default] child: Child<'_>) -> Result<impl View
                 <link rel="icon" href="/icons/icon-192.png">
                 <link rel="stylesheet" href="/app.css">
                 <script type="module" src="/vendor/datastar-1.0.2.js"></script>
+                <script src="/share-store.js" defer="true"></script>
+                <script src="/upload.js" defer="true"></script>
                 <script src="/app.js" defer="true"></script>
                 topcoat::dev::script()
             </head>
@@ -85,15 +95,32 @@ pub async fn shell(title: &str, #[default] child: Child<'_>) -> Result<impl View
     })
 }
 
-#[page]
-async fn home(cx: &Cx) -> Result<impl View> {
-    auth::require(cx)?;
+/// The "keep for" choice, preselecting the configured default.
+#[component]
+pub async fn expiry_select(cx: &Cx, id: &str) -> Result<impl View> {
     let config = config(cx);
     let options: Vec<(String, String, bool)> = config
         .expiry_options
         .iter()
         .map(|&expiry| (expiry.to_string(), expiry.describe(), expiry == config.default_expiry))
         .collect();
+
+    Ok(view! {
+        <label class="expiry">
+            "Keep for "
+            <select name="expiry" id=(id)>
+                for (value, label, selected) in options {
+                    <option value=(value) if selected { selected="true" }>(label)</option>
+                }
+            </select>
+        </label>
+    })
+}
+
+#[page]
+async fn home(cx: &Cx) -> Result<impl View> {
+    auth::require(cx)?;
+    let max_file = config(cx).max_file_bytes.to_string();
 
     Ok(view! {
         shell(title: "PocketDrop",
@@ -104,24 +131,27 @@ async fn home(cx: &Cx) -> Result<impl View> {
                 </form>
             </header>
 
-            <form class="send" method="POST" action="/send">
-                <textarea name="text" placeholder="Text or link to drop…" required="true"></textarea>
+            <p id="pending-share" class="banner" hidden="true">
+                "A share from your phone hasn't been sent yet. "
+                <a href="/send">"Review and send"</a>
+            </p>
+
+            // Works as a plain form; upload.js adds progress, drag-and-drop and paste.
+            <form id="send-form" class="send" method="POST" action="/drops" enctype="multipart/form-data" data-max-file=(max_file)>
+                <textarea name="text" placeholder="Text or link to drop… (or paste / drop files anywhere)"></textarea>
                 <div class="send-row">
-                    <label>
-                        "Keep for "
-                        <select name="expiry">
-                            for (value, label, selected) in options {
-                                <option value=(value) if selected { selected="true" }>(label)</option>
-                            }
-                        </select>
+                    <label class="file-pick">
+                        <input type="file" name="files" multiple="true">
                     </label>
+                    expiry_select(id: "expiry")
                     <button>"Drop it"</button>
                 </div>
             </form>
+            <ul id="uploads"></ul>
 
             // Opens the live stream; every change replaces #drops.
             <div data-init="@get('/events')"></div>
-            ui::drop_list(drops: store(cx).list())
+            ui::drop_list(drops: store(cx).list(), total_bytes: store(cx).total_bytes(), max_total_bytes: config(cx).max_total_bytes)
         )
     })
 }

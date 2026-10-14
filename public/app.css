@@ -85,3 +85,61 @@ select {
 .empty { color: var(--muted); text-align: center; padding: 2rem 0; }
 .error { color: #d33; }
 .notice { text-align: center; padding-top: 3rem; display: grid; gap: 1rem; justify-items: center; }
+
+.muted { color: var(--muted); }
+a { color: var(--accent); }
+a.button {
+  padding: 0.35rem 0.8rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.toolbar { justify-content: space-between; align-items: center; font-size: 0.85rem; }
+
+.file-pick input { width: auto; padding: 0.3rem; font-size: 0.85rem; }
+.expiry { color: var(--muted); font-size: 0.9rem; }
+.check { color: var(--muted); font-size: 0.9rem; display: flex; gap: 0.4rem; align-items: center; }
+.check input { width: auto; }
+
+.drop .preview {
+  display: block;
+  max-width: 100%;
+  max-height: 16rem;
+  border-radius: 0.5rem;
+  object-fit: contain;
+}
+.file-row { display: flex; gap: 0.75rem; align-items: baseline; justify-content: space-between; }
+.file-name { font-weight: 600; overflow-wrap: anywhere; }
+
+#uploads { display: grid; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+#uploads:empty { display: none; }
+.upload {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  display: grid;
+  gap: 0.4rem;
+}
+.upload-row { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.9rem; }
+.upload-name { overflow-wrap: anywhere; }
+.upload-state { color: var(--muted); white-space: nowrap; }
+.upload progress { width: 100%; height: 0.4rem; accent-color: var(--accent); }
+.upload-actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+.upload-actions button { padding: 0.25rem 0.7rem; font-size: 0.85rem; }
+.upload.failed { border-color: #d33; }
+.upload.failed .upload-state { color: #d33; white-space: normal; }
+.upload.sent .upload-state { color: var(--accent); }
+
+.banner {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--accent);
+}
+body.dragging main { outline: 3px dashed var(--accent); outline-offset: 0.5rem; border-radius: 0.75rem; }
+#share { display: grid; gap: 0.75rem; }
+#share-preview { display: grid; gap: 0.5rem; }
+.notice-inline { font-weight: 600; margin: 0; }
