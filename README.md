@@ -4,7 +4,7 @@ A private drop zone for moving text, links and files between your own devices, m
 
 Share something from any Android app and it shows up on your laptop immediately. Or paste or drag something into the page on your laptop and pick it up on your phone. Drops disappear on their own: after the first download or copy, or after a time you choose.
 
-<!-- DEPLOY_BUTTON -->
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/ApefAO)
 
 ## Features
 
