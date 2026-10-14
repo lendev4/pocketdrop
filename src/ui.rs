@@ -17,6 +17,9 @@ fn age(created_at: u64, now: u64) -> String {
 }
 
 fn expires(drop: &Drop, now: u64) -> String {
+    if drop.is_once() {
+        return "deleted after first use".to_owned();
+    }
     match drop.meta.expires_at {
         None => "kept until deleted".to_owned(),
         Some(at) => format!("expires in {}", Duration(at.saturating_sub(now))),
@@ -43,10 +46,11 @@ pub async fn drop_list(drops: Vec<Drop>, total_bytes: u64, max_total_bytes: u64)
             }
             <ul>
                 for drop in drops {
-                    <li class="drop">
+                    <li class="drop" if drop.is_once() { data-once=(drop.id.clone()) }>
                         match (&drop.meta.kind, &drop.meta.file) {
                             (Kind::File, Some(file)) => {
-                                if is_previewable(&file.mime) {
+                                // A preview would count as the one download.
+                                if is_previewable(&file.mime) && !drop.is_once() {
                                     <a href=(format!("/drops/{}/file", drop.id))>
                                         <img class="preview" src=(format!("/drops/{}/file?inline", drop.id)) alt=(file.name.clone()) loading="lazy">
                                     </a>

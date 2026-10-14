@@ -8,7 +8,7 @@ use topcoat::{
     context::{Cx, app_context},
     cookie::{Cookie, Cookies, Key, SameSite, signed_cookies, time::Duration},
     router::{
-        error::{forbidden, redirect, unauthorized},
+        error::{forbidden, not_found, redirect, unauthorized},
         request::{headers, uri},
     },
 };
@@ -21,6 +21,8 @@ pub struct Auth {
     pub key: Key,
     passphrase: String,
     session_days: u64,
+    /// Enables the `/api` routes when set.
+    api_token: Option<String>,
 }
 
 impl Auth {
@@ -42,7 +44,9 @@ impl Auth {
             .and_then(|days| days.parse().ok())
             .unwrap_or(365);
 
-        Self { key, passphrase, session_days }
+        let api_token = env::var("API_TOKEN").ok().filter(|token| !token.is_empty());
+
+        Self { key, passphrase, session_days, api_token }
     }
 }
 
@@ -101,13 +105,37 @@ pub fn require_same_origin(cx: &Cx) -> Result<()> {
     }
 }
 
+/// For `/api`: requires `Authorization: Bearer <API_TOKEN>`. Without a
+/// configured token the API does not exist.
+pub fn require_token(cx: &Cx) -> Result<()> {
+    let Some(expected) = &app_context::<Auth>(cx).api_token else {
+        return Err(not_found().into());
+    };
+    let sent = headers(cx)
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .unwrap_or_default();
+    if constant_time_eq(sent.as_bytes(), expected.as_bytes()) {
+        Ok(())
+    } else {
+        Err(unauthorized().into())
+    }
+}
+
 /// Checks the passphrase and, if it matches, sets the session cookie.
 pub fn log_in(cx: &Cx, passphrase: &str) -> bool {
     let auth = app_context::<Auth>(cx);
     if !constant_time_eq(passphrase.as_bytes(), auth.passphrase.as_bytes()) {
         return false;
     }
+    start_session(cx);
+    true
+}
 
+/// Sets the session cookie on this device.
+pub fn start_session(cx: &Cx) {
+    let auth = app_context::<Auth>(cx);
     let days = i64::try_from(auth.session_days).unwrap_or(365);
     signed_cookies(cx).add(
         Cookie::build((COOKIE, unix_now().to_string()))
@@ -118,7 +146,6 @@ pub fn log_in(cx: &Cx, passphrase: &str) -> bool {
             .max_age(Duration::days(days))
             .build(),
     );
-    true
 }
 
 pub fn log_out(cx: &Cx) {

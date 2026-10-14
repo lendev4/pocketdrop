@@ -94,11 +94,12 @@ Every drop has one expiry rule, chosen when sending:
 
 - **Default:** set by `DEFAULT_EXPIRY` (initially `24h`).
 - **Override:** each send can pick a different option. The choices offered are configurable via `EXPIRY_OPTIONS`.
+- **`once` backstop:** an unused `once` drop is still deleted after 7 days.
 - **What counts as consumed for `once`:**
-  - **Files:** a completed download.
+  - **Files:** the start of a download (not a preview; `once` drops show no image preview).
   - **Text and links:** pressing Copy or Open, which notifies the server.
 
-  The drop is then marked consumed. It disappears from the list immediately and is physically deleted after a short grace period (`ONCE_GRACE`, default 5 min), so an interrupted download can be retried.
+  The drop is then marked consumed. It disappears from the list immediately and is physically deleted after a short grace period of 5 minutes, so an interrupted download can be retried.
 - **Enforcement:**
   - Expired drops are hidden and refused immediately, even before physical deletion.
   - A cleanup task runs every minute and at startup. It deletes expired and consumed drops and enforces the limits in §7.
@@ -129,10 +130,14 @@ Anyone who sees the QR code within those 5 minutes could pair a device. That's a
 If `API_TOKEN` is set, requests to `/api/*` with `Authorization: Bearer <API_TOKEN>` are accepted without a cookie, for scripts and terminal use:
 
 ```sh
-curl -H "Authorization: Bearer $T" -F file=@report.pdf https://<host>/api/drops
-curl -H "Authorization: Bearer $T" -F text="hello"     https://<host>/api/drops
-curl -H "Authorization: Bearer $T" https://<host>/api/latest   # prints the newest text, or downloads the newest file
+curl -H "Authorization: Bearer $T" -F files=@report.pdf https://<host>/api/drops
+curl -H "Authorization: Bearer $T" -F text="hello" -F expiry=10m https://<host>/api/drops
+echo "piped text" | curl -H "Authorization: Bearer $T" -F 'text=<-' https://<host>/api/drops
+curl -H "Authorization: Bearer $T" https://<host>/api/latest        # prints the newest text
+curl -H "Authorization: Bearer $T" -OJ https://<host>/api/latest    # saves the newest file under its name
 ```
+
+`/api/latest` uses up a `once` drop. Without `API_TOKEN` set, `/api/*` answers 404.
 
 ## 7. Limits
 
@@ -258,8 +263,7 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 | `API_TOKEN` | | unset, which disables the API |
 | `DATA_DIR` | | `/data` |
 | `DEFAULT_EXPIRY` | | `24h` |
-| `EXPIRY_OPTIONS` | | `10m,1h,24h,7d,never` (`once` added in M3) |
-| `ONCE_GRACE` | | `5m` |
+| `EXPIRY_OPTIONS` | | `once,10m,1h,24h,7d,never` |
 | `MAX_FILE_BYTES` / `MAX_TEXT_BYTES` / `MAX_TOTAL_BYTES` / `MAX_DROPS` | | see §7 |
 | `PORT` | | provided by Railway |
 
@@ -295,12 +299,12 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 - `upload.js`: progress, paste, drag-and-drop.
 - `sw.js` share intake with the confirm screen and retry.
 
-### M3: comfort
+### M3: comfort ✅ done 2026-10-14 (except the large-file hint)
 
 - QR pairing.
 - `once` expiry.
 - API token plus curl examples.
-- Optional "Large file? → open PairDrop" hint above `MAX_FILE_BYTES`.
+- Optional "Large file? → open PairDrop" hint above `MAX_FILE_BYTES`. **Postponed:** to be revisited later.
 
 ## 16. Open questions to check in M0
 

@@ -16,14 +16,14 @@ impl Config {
     pub fn from_env() -> Self {
         let default_expiry: Expiry = parse_env("DEFAULT_EXPIRY", "24h");
         let mut expiry_options: Vec<Expiry> = env::var("EXPIRY_OPTIONS")
-            .unwrap_or_else(|_| "10m,1h,24h,7d,never".to_owned())
+            .unwrap_or_else(|_| "once,10m,1h,24h,7d,never".to_owned())
             .split(',')
             .map(|option| option.trim().parse().expect("invalid EXPIRY_OPTIONS entry"))
             .collect();
         if !expiry_options.contains(&default_expiry) {
             expiry_options.push(default_expiry);
         }
-        expiry_options.sort_by_key(|expiry| expiry.seconds().unwrap_or(u64::MAX));
+        expiry_options.sort_by_key(|expiry| expiry.sort_key());
 
         Self {
             data_dir: env::var("DATA_DIR").unwrap_or_else(|_| "data".to_owned()).into(),
@@ -52,21 +52,46 @@ fn parse_env<T: FromStr>(name: &str, default: &str) -> T {
         .unwrap_or_else(|_| panic!("{name} has an invalid value: {value}"))
 }
 
-/// How long a drop is kept: a duration in seconds, or `None` for until deleted.
-/// Written as `10m`, `1h`, `7d` or `never`.
+/// Seconds a consumed `once` drop stays downloadable, so an interrupted
+/// download can be retried.
+pub const ONCE_GRACE_SECS: u64 = 5 * 60;
+/// Unused `once` drops are still removed after this long.
+pub const ONCE_MAX_SECS: u64 = 7 * 86_400;
+
+/// How long a drop is kept. Written as `10m`, `1h`, `7d`, `never` or `once`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Expiry(Option<u64>);
+pub enum Expiry {
+    After(u64),
+    Never,
+    /// Deleted shortly after its first download or copy.
+    Once,
+}
 
 impl Expiry {
-    pub fn seconds(self) -> Option<u64> {
-        self.0
+    /// Seconds until the drop is deleted regardless of use.
+    pub fn lifetime(self) -> Option<u64> {
+        match self {
+            Self::After(secs) => Some(secs),
+            Self::Never => None,
+            Self::Once => Some(ONCE_MAX_SECS),
+        }
     }
 
     /// Wording for the send form.
     pub fn describe(self) -> String {
-        match self.0 {
-            None => "Until deleted".to_owned(),
-            Some(secs) => format!("{}", Duration(secs)),
+        match self {
+            Self::After(secs) => Duration(secs).to_string(),
+            Self::Never => "Until deleted".to_owned(),
+            Self::Once => "Until first use".to_owned(),
+        }
+    }
+
+    /// Order in the send form: once, then shortest to longest, then never.
+    fn sort_key(self) -> u64 {
+        match self {
+            Self::Once => 0,
+            Self::After(secs) => secs,
+            Self::Never => u64::MAX,
         }
     }
 }
@@ -75,8 +100,10 @@ impl FromStr for Expiry {
     type Err = ();
 
     fn from_str(value: &str) -> Result<Self, ()> {
-        if value == "never" {
-            return Ok(Self(None));
+        match value {
+            "never" => return Ok(Self::Never),
+            "once" => return Ok(Self::Once),
+            _ => {}
         }
         let (number, unit) = value.split_at(value.len().saturating_sub(1));
         let number: u64 = number.parse().map_err(|_| ())?;
@@ -88,19 +115,20 @@ impl FromStr for Expiry {
         };
         match number {
             0 => Err(()),
-            n => Ok(Self(Some(n * factor))),
+            n => Ok(Self::After(n * factor)),
         }
     }
 }
 
 impl fmt::Display for Expiry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.0 {
-            None => f.write_str("never"),
+        match *self {
+            Self::Never => f.write_str("never"),
+            Self::Once => f.write_str("once"),
             // Days only from two days up, so 24h stays 24h.
-            Some(secs) if secs >= 2 * 86_400 && secs % 86_400 == 0 => write!(f, "{}d", secs / 86_400),
-            Some(secs) if secs % 3600 == 0 => write!(f, "{}h", secs / 3600),
-            Some(secs) => write!(f, "{}m", secs / 60),
+            Self::After(secs) if secs >= 2 * 86_400 && secs % 86_400 == 0 => write!(f, "{}d", secs / 86_400),
+            Self::After(secs) if secs % 3600 == 0 => write!(f, "{}h", secs / 3600),
+            Self::After(secs) => write!(f, "{}m", secs / 60),
         }
     }
 }
@@ -151,7 +179,7 @@ mod tests {
 
     #[test]
     fn expiry_round_trips() {
-        for text in ["10m", "1h", "24h", "7d", "never"] {
+        for text in ["10m", "1h", "24h", "7d", "never", "once"] {
             assert_eq!(text.parse::<Expiry>().unwrap().to_string(), text);
         }
         assert!("0h".parse::<Expiry>().is_err());

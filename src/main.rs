@@ -1,3 +1,4 @@
+mod api;
 mod auth;
 mod config;
 mod drops;
@@ -6,6 +7,7 @@ mod healthz;
 mod ingest;
 mod login;
 mod logout;
+mod pair;
 mod send;
 mod share;
 mod store;
@@ -21,7 +23,7 @@ use topcoat::{
     view::{Child, View, component, view},
 };
 
-use crate::{auth::Auth, config::Config, store::Store};
+use crate::{auth::Auth, config::Config, pair::Pairing, store::Store};
 
 #[tokio::main]
 async fn main() {
@@ -50,10 +52,12 @@ async fn main() {
         .cookies()
         .layer(BodyLimit::max(upload_limit).at("/drops"))
         .layer(BodyLimit::max(upload_limit).at("/share"))
+        .layer(BodyLimit::max(upload_limit).at("/api"))
         .app_context(auth.key.clone())
         .app_context(auth)
         .app_context(config)
         .app_context(store)
+        .app_context(Pairing::default())
         .public_dir("public")
         .build();
 
@@ -126,10 +130,14 @@ async fn home(cx: &Cx) -> Result<impl View> {
         shell(title: "PocketDrop",
             <header>
                 <h1>"PocketDrop"</h1>
-                <form method="POST" action="/logout">
-                    <button class="quiet">"Log out"</button>
-                </form>
+                <div class="header-actions">
+                    <button class="quiet" data-on:click="@post('/pair')">"Pair device"</button>
+                    <form method="POST" action="/logout">
+                        <button class="quiet">"Log out"</button>
+                    </form>
+                </div>
             </header>
+            <div id="pair"></div>
 
             <p id="pending-share" class="banner" hidden="true">
                 "A share from your phone hasn't been sent yet. "

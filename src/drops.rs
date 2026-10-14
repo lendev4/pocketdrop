@@ -67,25 +67,42 @@ async fn delete(cx: &Cx) -> Result<()> {
     }
 }
 
+/// Marks a `once` text or link as used (Copy or Open was pressed).
+#[route(POST "./{drop_id}/consume")]
+async fn consume(cx: &Cx) -> Result<()> {
+    auth::require_api(cx)?;
+    let id: &str = path_param::<DropId>(cx);
+    store(cx).consume(id).await?;
+    Ok(())
+}
+
 /// Streams a file drop. Always a download, except `?inline` previews of
 /// raster images, which are safe to show in the page.
 #[route(GET "./{drop_id}/file")]
-async fn file(cx: &Cx) -> Result<Response> {
+async fn download(cx: &Cx) -> Result<Response> {
     if !auth::is_logged_in(cx) {
         return Err(unauthorized().into());
     }
     let id: &str = path_param::<DropId>(cx);
     let (meta, path) = store(cx).file(id).ok_or_else(not_found)?;
-    let inline = uri(cx).query().is_some_and(|q| q.split('&').any(|p| p == "inline"))
-        && is_previewable(&meta.mime);
+    let preview = uri(cx).query().is_some_and(|q| q.split('&').any(|p| p == "inline"));
+    let inline = preview && is_previewable(&meta.mime);
 
     let file = tokio::fs::File::open(path).await?;
-    let chunks = ReaderStream::new(file).map_ok(Frame::data);
+    if !preview {
+        // A download uses up a `once` drop; previews don't.
+        store(cx).consume(id).await?;
+    }
+    Ok(file_response(file, &meta, inline)?)
+}
 
+/// The response for a file drop's bytes; shared with the API.
+pub fn file_response(file: tokio::fs::File, meta: &FileMeta, inline: bool) -> Result<Response> {
+    let chunks = ReaderStream::new(file).map_ok(Frame::data);
     Ok(Response::builder()
         .header(header::CONTENT_TYPE, &meta.mime)
         .header(header::CONTENT_LENGTH, meta.size)
-        .header(header::CONTENT_DISPOSITION, disposition(&meta, inline))
+        .header(header::CONTENT_DISPOSITION, disposition(meta, inline))
         .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
         .header(header::CONTENT_SECURITY_POLICY, "default-src 'none'; sandbox")
         .header(header::CACHE_CONTROL, "private, max-age=3600")

@@ -26,7 +26,7 @@ use tokio::{
     sync::broadcast,
 };
 
-use crate::config::{Config, Expiry};
+use crate::config::{Config, Expiry, ONCE_GRACE_SECS};
 
 pub fn unix_now() -> u64 {
     SystemTime::now()
@@ -53,6 +53,9 @@ pub struct Meta {
     pub source: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<FileMeta>,
+    /// When a `once` drop was first downloaded or copied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consumed_at: Option<u64>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -74,6 +77,10 @@ pub struct Drop {
 impl Drop {
     pub fn is_expired(&self, now: u64) -> bool {
         self.meta.expires_at.is_some_and(|at| at <= now)
+    }
+
+    pub fn is_once(&self) -> bool {
+        self.meta.expiry == Expiry::Once.to_string()
     }
 
     fn size(&self) -> u64 {
@@ -246,9 +253,30 @@ impl Store {
         self.lock()
             .iter()
             .rev()
-            .filter(|drop| !drop.is_expired(now))
+            .filter(|drop| !drop.is_expired(now) && drop.meta.consumed_at.is_none())
             .cloned()
             .collect()
+    }
+
+    /// Marks a `once` drop as used: it leaves the list now and is deleted
+    /// after a short grace period. Returns false for other drops.
+    pub async fn consume(&self, id: &str) -> io::Result<bool> {
+        let now = unix_now();
+        let meta = {
+            let mut drops = self.lock();
+            let Some(drop) = drops
+                .iter_mut()
+                .find(|drop| drop.id == id && drop.is_once() && drop.meta.consumed_at.is_none() && !drop.is_expired(now))
+            else {
+                return Ok(false);
+            };
+            drop.meta.consumed_at = Some(now);
+            drop.meta.expires_at = Some(now + ONCE_GRACE_SECS);
+            drop.meta.clone()
+        };
+        fs::write(self.drops_dir.join(id).join("meta.json"), serde_json::to_vec_pretty(&meta)?).await?;
+        self.notify();
+        Ok(true)
     }
 
     /// A live file drop and the path of its bytes.
@@ -378,9 +406,10 @@ fn new_meta(kind: Kind, expiry: Expiry, source: &str, file: Option<FileMeta>) ->
         kind,
         created_at: now,
         expiry: expiry.to_string(),
-        expires_at: expiry.seconds().map(|secs| now + secs),
+        expires_at: expiry.lifetime().map(|secs| now + secs),
         source: source.to_owned(),
         file,
+        consumed_at: None,
     }
 }
 
