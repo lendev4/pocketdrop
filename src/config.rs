@@ -18,7 +18,7 @@ impl Config {
     pub fn from_env() -> Self {
         let default_expiry: Expiry = parse_env("DEFAULT_EXPIRY", "24h");
         let mut expiry_options: Vec<Expiry> = env::var("EXPIRY_OPTIONS")
-            .unwrap_or_else(|_| "once,10m,1h,24h,7d,never".to_owned())
+            .unwrap_or_else(|_| "once,5m,10m,1h,24h,7d,never".to_owned())
             .split(',')
             .map(|option| option.trim().parse().expect("invalid EXPIRY_OPTIONS entry"))
             .collect();

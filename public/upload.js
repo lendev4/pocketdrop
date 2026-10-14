@@ -150,8 +150,8 @@ self.Uploads = (() => {
       pairdrop.addEventListener("click", () => {
         openInPairDrop(item.file, pairdropUrl);
         row.classList.remove("failed");
-        state.textContent = "Opened in PairDrop: pick your device there.";
-        pairdrop.hidden = true;
+        state.textContent = "Opened in PairDrop: pick your device there. If PairDrop shows an error, open PairDrop once in this browser and try again.";
+        pairdrop.textContent = "Send with PairDrop again";
         cancel.textContent = "Dismiss";
         finish("handed-off");
       });

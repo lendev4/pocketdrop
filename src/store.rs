@@ -203,10 +203,12 @@ impl Store {
         Ok(())
     }
 
-    /// Announces a file sent through a direct-transfer service.
-    pub async fn add_handoff(&self, name: String, size: u64, expiry: Expiry) -> io::Result<()> {
+    /// Announces a file sent through a direct-transfer service. The notice
+    /// is used up by opening the service, and gone after `max_secs` anyway.
+    pub async fn add_handoff(&self, name: String, size: u64, max_secs: u64) -> io::Result<()> {
         let file = FileMeta { name, mime: String::new(), size };
-        let meta = new_meta(Kind::Handoff, expiry, "handoff", Some(file));
+        let mut meta = new_meta(Kind::Handoff, Expiry::Once, "handoff", Some(file));
+        meta.expires_at = Some(meta.created_at + max_secs);
         let id = self.new_id();
         let staging = self.tmp_dir.join(&id);
         fs::create_dir(&staging).await?;

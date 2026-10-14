@@ -15,7 +15,7 @@ document.addEventListener("click", (event) => {
 
 // Copy buttons carry the text to copy in data-copy.
 document.addEventListener("click", async (event) => {
-  const link = event.target.closest("a.content");
+  const link = event.target.closest("a.content, a[data-consume]");
   if (link) consume(link);
   const button = event.target.closest("[data-copy]");
   if (!button) return;

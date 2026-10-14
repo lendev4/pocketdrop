@@ -263,7 +263,7 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 | `API_TOKEN` | | unset, which disables the API |
 | `DATA_DIR` | | `/data` |
 | `DEFAULT_EXPIRY` | | `24h` |
-| `EXPIRY_OPTIONS` | | `once,10m,1h,24h,7d,never` |
+| `EXPIRY_OPTIONS` | | `once,5m,10m,1h,24h,7d,never` |
 | `MAX_FILE_BYTES` / `MAX_TEXT_BYTES` / `MAX_TOTAL_BYTES` / `MAX_DROPS` | | see §7 |
 | `PAIRDROP_URL` | | `https://pairdrop.net/` |
 | `PORT` | | provided by Railway |
@@ -312,7 +312,8 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 For files over `MAX_FILE_BYTES`, the upload row offers **Send with PairDrop**:
 
 - PocketDrop posts the file to `PAIRDROP_URL` in a new tab, the same way Android's share menu feeds PairDrop. PairDrop's service worker stores it and opens PairDrop with the file ready to send. **Undocumented PairDrop behaviour**, which only works if PairDrop has been opened in that browser before (so its service worker exists).
-- At the same time PocketDrop adds a `handoff` drop: "Incoming via PairDrop: name · size" with an **Open PairDrop** button, kept for 1 hour, using no storage.
+- At the same time PocketDrop adds a `handoff` drop: "Incoming via PairDrop: name · size" with an **Open PairDrop** button. It is used up by opening PairDrop (like `once`), is gone after 1 hour at the latest, and uses no storage.
+- The first hand-off in a browser can fail with PairDrop's "request entity too large": its service worker wasn't active yet, so the file reached PairDrop's server. Opening PairDrop once fixes it; the upload row says so.
 - One-time setup: pair the devices inside PairDrop, so they find each other on any network.
 - PairDrop room links (`?room_id=`) can't be prepared by PocketDrop: PairDrop's server creates room IDs and rejects unknown ones. FilePizza has no URL parameters or API, so it was not integrated.
 

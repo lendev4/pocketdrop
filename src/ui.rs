@@ -17,6 +17,9 @@ fn age(created_at: u64, now: u64) -> String {
 }
 
 fn expires(drop: &Drop, now: u64) -> String {
+    if drop.meta.kind == Kind::Handoff {
+        return "gone once opened".to_owned();
+    }
     if drop.is_once() {
         return "deleted after first use".to_owned();
     }
@@ -86,7 +89,7 @@ pub async fn drop_list(
                                 if drop.meta.kind == Kind::File {
                                     <a class="button" href=(format!("/drops/{}/file", drop.id))>"Download"</a>
                                 } else if drop.meta.kind == Kind::Handoff {
-                                    <a class="button" href=(pairdrop_url.clone()) target="_blank" rel="noopener noreferrer">"Open PairDrop"</a>
+                                    <a class="button" href=(pairdrop_url.clone()) target="_blank" rel="noopener noreferrer" data-consume="true">"Open PairDrop"</a>
                                 } else {
                                     <button class="quiet" data-copy=(drop.text.clone())>"Copy"</button>
                                 }

@@ -19,7 +19,7 @@ use topcoat::{
 
 use serde::Deserialize;
 
-use crate::{auth, config::Expiry, ingest::ingest, store, store::FileMeta};
+use crate::{auth, ingest::ingest, store, store::FileMeta};
 
 path_param!(drop_id);
 
@@ -57,12 +57,12 @@ struct HandoffForm {
 }
 
 /// Tells the other devices a file is coming through PairDrop, so they can
-/// open it to receive. The notice disappears after an hour.
+/// open it to receive. The notice goes once opened, or after an hour.
 #[route(POST "./handoff")]
 async fn handoff(cx: &Cx, Form(form): Form<HandoffForm>) -> Result<()> {
     auth::require_api(cx)?;
     let name: String = form.name.chars().filter(|c| !c.is_control()).take(200).collect();
-    store(cx).add_handoff(name, form.size, Expiry::After(3600)).await?;
+    store(cx).add_handoff(name, form.size, 3600).await?;
     Ok(())
 }
 
