@@ -1,0 +1,17 @@
+[package]
+name = "pocketdrop"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+
+[dependencies]
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+# Experimental framework: pin exactly and upgrade on purpose.
+topcoat = { version = "=0.10.0", features = ["datastar", "fs", "multipart", "sse"] }
+
+[profile.release]
+strip = true
+lto = "thin"
