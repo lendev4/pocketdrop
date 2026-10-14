@@ -88,7 +88,7 @@ Every drop has one expiry rule, chosen when sending:
 
 | Option | Meaning |
 |---|---|
-| `1h`, `24h`, `7d` | Deleted at `created_at + duration` |
+| `10m`, `1h`, `24h`, `7d` | Deleted at `created_at + duration` |
 | `never` | Kept until deleted manually |
 | `once` | Deleted after it has been consumed once (see below) |
 
@@ -259,7 +259,7 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 | `API_TOKEN` | | unset, which disables the API |
 | `DATA_DIR` | | `/data` |
 | `DEFAULT_EXPIRY` | | `24h` |
-| `EXPIRY_OPTIONS` | | `1h,24h,7d,never,once` |
+| `EXPIRY_OPTIONS` | | `10m,1h,24h,7d,never` (`once` added in M3) |
 | `ONCE_GRACE` | | `5m` |
 | `MAX_FILE_BYTES` / `MAX_TEXT_BYTES` / `MAX_TOTAL_BYTES` / `MAX_DROPS` | | see §7 |
 | `PORT` | | provided by Railway |
@@ -283,7 +283,7 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 - Share text from another app to `/share` and see it on Linux **live** over SSE.
 - Check the open questions in §16.
 
-### M1: text and links
+### M1: text and links ✅ done 2026-10-14
 
 - Login, cookie, logout.
 - Text and link drops, live list, Copy, Open, Delete, Clear all.
