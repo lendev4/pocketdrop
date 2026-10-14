@@ -72,7 +72,7 @@ It is **not** an archive or an inbox to organise. Drops are short-lived and are 
 - Each drop shows its kind, its age and when it expires.
   - **Text:** a preview (expandable) and a **Copy** button.
   - **Link:** **Open** (only `http`/`https`) and **Copy**.
-  - **File:** name, size, an image thumbnail if it's an image, and **Download**.
+  - **File:** name, size, a preview if it's a JPEG/PNG/GIF/WebP/AVIF image (the original, shown inline and lazy-loaded), and **Download**.
 - **Delete** on every drop, plus **Clear all**.
 
 ### 4.4 Log in, pair, log out
@@ -153,7 +153,6 @@ All limits are configurable. The server enforces them and never trusts the clien
     01JA8X…/                 ← id: time-sortable (ULID), so the folder name orders by time
       meta.json
       content                ← the text, or the file's bytes
-      thumb.webp             ← optional image thumbnail
   tmp/                       ← uploads in progress
 ```
 
@@ -224,7 +223,7 @@ Live list, Copy, Delete, Clear all and the pairing dialog are Datastar attribute
 | `GET` | `/events` | SSE stream (Datastar patches) |
 | `POST` | `/drops` | Create a drop (multipart: `text` or `file`, plus `expiry`) |
 | `GET` | `/drops/:id/download` | Download a file (`Content-Disposition: attachment`) |
-| `GET` | `/drops/:id/thumb` | Image thumbnail |
+| `GET` | `/drops/:id/file?inline` | Inline preview, only for raster image types (never SVG) |
 | `POST` | `/drops/:id/consume` | Mark a `once` text or link as consumed |
 | `DELETE` | `/drops/:id` | Delete one drop |
 | `DELETE` | `/drops` | Clear all |
@@ -289,9 +288,10 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 - Text and link drops, live list, Copy, Open, Delete, Clear all.
 - Expiry: default plus override, cleanup task.
 
-### M2: files
+### M2: files ✅ done 2026-10-14
 
-- Streaming uploads to `tmp/`, atomic rename, limits, download, thumbnails.
+- Streaming uploads to `tmp/`, atomic rename, limits, download, inline image previews (no generated thumbnails yet; add them if large photos make the list slow).
+- The upload queue sends **one request per text or file**, so each has its own progress, cancel and retry.
 - `upload.js`: progress, paste, drag-and-drop.
 - `sw.js` share intake with the confirm screen and retry.
 
@@ -305,7 +305,7 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 ## 16. Open questions to check in M0
 
 1. ✅ **Answered in M0:** Android Chrome installs the PWA with the minimal `sw.js` (no fetch handler) and offers it in the Share menu. The share POST arrives **with** the `SameSite=Lax` login cookie.
-2. Railway's proxy: idle timeout for SSE (✅ SSE works through the proxy; long idle periods not yet observed), maximum request body size and duration for uploads.
-3. Topcoat 0.10 APIs: streaming multipart into a file, signed cookies, serving `public/` at the root next to the module router, how much memory the app uses.
+2. Railway's proxy: ✅ SSE works through it (long idle periods not yet observed). ✅ A 60 MB upload took 22 s and came back byte-identical, so the proxy doesn't block uploads within `MAX_FILE_BYTES`.
+3. ✅ Topcoat 0.10 handles streaming multipart, signed cookies and `public/` at the root. Memory on Railway: about 3 MB idle, peaking under 6 MB while moving a 60 MB file.
 4. Datastar under a strict Content-Security-Policy (it evaluates expressions, so it may need `'unsafe-eval'`).
-5. Thumbnails: the `image` crate is fine for JPEG/PNG/WebP. Decide whether HEIC photos from Android need special handling or just get no thumbnail.
+5. Thumbnails: postponed. Previews show the original image; HEIC photos get no preview, just the file row.
