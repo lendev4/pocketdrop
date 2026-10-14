@@ -58,7 +58,19 @@ button {
 }
 button.quiet { background: transparent; color: var(--muted); border: 1px solid var(--border); }
 
-#drops { display: grid; gap: 0.6rem; list-style: none; margin: 0; padding: 0; }
+#drops { display: grid; gap: 0.6rem; }
+#drops ul { display: grid; gap: 0.6rem; list-style: none; margin: 0; padding: 0; }
+.toolbar { display: flex; justify-content: flex-end; }
+.send-row { display: flex; gap: 0.5rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.send-row label { color: var(--muted); font-size: 0.9rem; }
+select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+}
 .drop {
   background: var(--card);
   border: 1px solid var(--border);
@@ -68,7 +80,7 @@ button.quiet { background: transparent; color: var(--muted); border: 1px solid v
   gap: 0.5rem;
 }
 .drop .content { white-space: pre-wrap; overflow-wrap: anywhere; }
-.drop .meta { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.75rem; align-items: center; }
+.drop .meta { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
 .drop .meta .actions { margin-left: auto; display: flex; gap: 0.4rem; }
 .empty { color: var(--muted); text-align: center; padding: 2rem 0; }
 .error { color: #d33; }

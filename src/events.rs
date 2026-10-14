@@ -12,7 +12,7 @@ use topcoat::{
     view::{ViewExt, view},
 };
 
-use crate::{auth, drops};
+use crate::{auth, store, ui};
 
 /// Live stream for the main page: sends the full list on connect, then again
 /// after every change. Reconnecting therefore always catches up.
@@ -22,7 +22,7 @@ async fn events(cx: &Cx) -> Result<Sse<impl Stream<Item = Result<Event>> + use<>
         return Err(unauthorized().into());
     }
 
-    let rx = drops::drops(cx).subscribe();
+    let rx = store(cx).subscribe();
     let cx = cx.clone();
 
     let events = stream::unfold((rx, cx, true), |(mut rx, cx, first)| async move {
@@ -46,7 +46,7 @@ async fn wait_for_change(rx: &mut broadcast::Receiver<()>) -> bool {
 }
 
 async fn render_list(cx: &Cx) -> Result<Event> {
-    let list = drops::drops(cx).list();
-    let html = view! { cx => drops::drop_list(drops: list) }.single().await?;
+    let list = store(cx).list();
+    let html = view! { cx => ui::drop_list(drops: list) }.single().await?;
     Ok(PatchElements::new(html.render(cx)).into())
 }

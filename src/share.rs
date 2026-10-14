@@ -8,15 +8,13 @@ use topcoat::{
     view::{ViewExt, view},
 };
 
-use crate::{auth, drops, shell};
+use crate::{auth, config, shell, store};
 
 /// Android Share Target. M0 posts here directly; the service worker takes
 /// over in M2.
 #[route(POST)]
 async fn share(cx: &Cx, mut form: Multipart) -> Result<Html<String>> {
     let logged_in = auth::is_logged_in(cx);
-    // M0 diagnostic: does Android send our cookie along with a share?
-    eprintln!("share received, logged in: {logged_in}");
 
     let (mut title, mut text, mut url) = (String::new(), String::new(), String::new());
     while let Some(field) = form.next_field().await? {
@@ -31,9 +29,11 @@ async fn share(cx: &Cx, mut form: Multipart) -> Result<Html<String>> {
     }
 
     let content = combine(&title, &text, &url);
-    let sent = logged_in && !content.is_empty();
+    let config = config(cx);
+    let too_large = content.len() > config.max_text_bytes;
+    let sent = logged_in && !content.is_empty() && !too_large;
     if sent {
-        drops::drops(cx).add(content, "share");
+        store(cx).add_text(content, config.default_expiry, "share").await?;
     }
 
     let page = view! { cx =>
@@ -41,6 +41,9 @@ async fn share(cx: &Cx, mut form: Multipart) -> Result<Html<String>> {
             <div class="notice">
                 if sent {
                     <h1>"Sent ✓"</h1>
+                } else if too_large {
+                    <h1>"Too large"</h1>
+                    <p>"The shared text is over the size limit."</p>
                 } else if !logged_in {
                     <h1>"Not logged in"</h1>
                     <p>"The share arrived without a login cookie."</p>

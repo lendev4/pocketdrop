@@ -1,17 +1,19 @@
 //! Single-user login: one passphrase, then a signed cookie holding the time
 //! it was issued. Nothing is stored server-side.
 
-use std::{
-    env,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::env;
 
 use topcoat::{
     Result,
     context::{Cx, app_context},
     cookie::{Cookie, Cookies, Key, SameSite, signed_cookies, time::Duration},
-    router::error::redirect,
+    router::{
+        error::{forbidden, redirect, unauthorized},
+        request::headers,
+    },
 };
+
+use crate::store::unix_now;
 
 const COOKIE: &str = "pd_session";
 
@@ -44,19 +46,12 @@ impl Auth {
     }
 }
 
-fn now() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-}
-
 pub fn is_logged_in(cx: &Cx) -> bool {
     let auth = app_context::<Auth>(cx);
     signed_cookies(cx)
         .get(COOKIE)
         .and_then(|cookie| cookie.value().parse::<u64>().ok())
-        .is_some_and(|issued| now().saturating_sub(issued) < auth.session_days * 86_400)
+        .is_some_and(|issued| unix_now().saturating_sub(issued) < auth.session_days * 86_400)
 }
 
 /// Redirects to the login page unless the request is logged in.
@@ -65,6 +60,33 @@ pub fn require(cx: &Cx) -> Result<()> {
         Ok(())
     } else {
         Err(redirect("/login").into())
+    }
+}
+
+/// For requests made by page scripts: rejects instead of redirecting.
+pub fn require_api(cx: &Cx) -> Result<()> {
+    if !is_logged_in(cx) {
+        return Err(unauthorized().into());
+    }
+    require_same_origin(cx)
+}
+
+/// Rejects state-changing requests sent from another site. Browsers set
+/// `Origin` on such requests; a missing header is left to `SameSite`.
+pub fn require_same_origin(cx: &Cx) -> Result<()> {
+    let headers = headers(cx);
+    let Some(origin) = headers.get("origin").and_then(|value| value.to_str().ok()) else {
+        return Ok(());
+    };
+    let host = headers
+        .get("x-forwarded-host")
+        .or_else(|| headers.get("host"))
+        .and_then(|value| value.to_str().ok());
+    let origin_host = origin.split_once("://").map(|(_, host)| host);
+
+    match (origin_host, host) {
+        (Some(origin_host), Some(host)) if origin_host == host => Ok(()),
+        _ => Err(forbidden().into()),
     }
 }
 
@@ -77,7 +99,7 @@ pub fn log_in(cx: &Cx, passphrase: &str) -> bool {
 
     let days = i64::try_from(auth.session_days).unwrap_or(365);
     signed_cookies(cx).add(
-        Cookie::build((COOKIE, now().to_string()))
+        Cookie::build((COOKIE, unix_now().to_string()))
             .path("/")
             .http_only(true)
             .secure(true)

@@ -8,5 +8,5 @@ FROM debian:trixie-slim
 WORKDIR /app
 COPY --from=build /src/target/release/pocketdrop /usr/local/bin/pocketdrop
 COPY public ./public
-ENV HOST=0.0.0.0
+ENV HOST=0.0.0.0 DATA_DIR=/data
 CMD ["pocketdrop"]
