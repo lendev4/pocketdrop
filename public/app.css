@@ -30,7 +30,9 @@ body {
   font: 16px/1.45 system-ui, sans-serif;
 }
 
-main { max-width: 42rem; margin: 0 auto; display: grid; gap: 1rem; }
+main { max-width: 42rem; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+/* Grid children may shrink below their content, so long words wrap instead of widening the page. */
+main > *, #share > *, .drop > * { min-width: 0; }
 
 header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 h1 { font-size: 1.25rem; margin: 0; }
@@ -79,7 +81,7 @@ select {
   display: grid;
   gap: 0.5rem;
 }
-.drop .content { white-space: pre-wrap; overflow-wrap: anywhere; }
+.content { white-space: pre-wrap; overflow-wrap: anywhere; }
 .drop .meta { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
 .drop .meta .actions { margin-left: auto; display: flex; gap: 0.4rem; }
 .empty { color: var(--muted); text-align: center; padding: 2rem 0; }
@@ -105,7 +107,7 @@ a.button {
 .drop .preview {
   display: block;
   max-width: 100%;
-  max-height: 16rem;
+  max-height: 7rem;
   border-radius: 0.5rem;
   object-fit: contain;
 }

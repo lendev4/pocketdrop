@@ -32,7 +32,30 @@
         {
           "name": "files",
           "accept": [
-            "*/*"
+            "image/*",
+            "video/*",
+            "audio/*",
+            "text/*",
+            "application/*",
+            "*/*",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".webp",
+            ".heic",
+            ".pdf",
+            ".txt",
+            ".zip",
+            ".doc",
+            ".docx",
+            ".xls",
+            ".xlsx",
+            ".ppt",
+            ".pptx",
+            ".odt",
+            ".mp4",
+            ".mp3"
           ]
         }
       ]
