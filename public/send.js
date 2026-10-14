@@ -54,6 +54,13 @@
     preview.append(block);
   }
   for (const file of share.files) {
+    if (file.type.startsWith("image/")) {
+      const image = document.createElement("img");
+      image.className = "preview";
+      image.alt = file.name;
+      image.src = URL.createObjectURL(file);
+      preview.append(image);
+    }
     const row = document.createElement("div");
     row.className = "file-row drop";
     const name = document.createElement("span");

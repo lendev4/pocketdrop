@@ -128,7 +128,8 @@ self.Uploads = (() => {
             bar.value = 1;
             row.classList.add("sent");
             cancel.hidden = true;
-            setTimeout(() => row.remove(), 2500);
+            // The drop itself shows up (highlighted) in the list right away.
+            setTimeout(() => row.remove(), 600);
             finish("sent");
           },
           (error) => {

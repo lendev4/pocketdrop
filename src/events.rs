@@ -50,10 +50,12 @@ async fn render_list(cx: &Cx) -> Result<Event> {
     let (list, total_bytes) = (store.list(), store.total_bytes());
     let config = config(cx);
     let (max_total_bytes, pairdrop_url) = (config.max_total_bytes, config.pairdrop_url.clone());
+    // Two elements in one patch: Datastar morphs each into the element with its id.
     let html = view! { cx =>
-        ui::drop_list(drops: list, total_bytes: total_bytes, max_total_bytes: max_total_bytes, pairdrop_url: pairdrop_url)
+        ui::drop_list(drops: list, pairdrop_url: pairdrop_url)
+        ui::usage(total_bytes: total_bytes, max_total_bytes: max_total_bytes)
     }
-        .single()
-        .await?;
+    .single()
+    .await?;
     Ok(PatchElements::new(html.render(cx)).into())
 }

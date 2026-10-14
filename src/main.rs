@@ -131,12 +131,16 @@ async fn home(cx: &Cx) -> Result<impl View> {
         shell(title: "PocketDrop",
             <header>
                 <h1>"PocketDrop"</h1>
-                <div class="header-actions">
-                    <button class="quiet" data-on:click="@post('/pair')">"Pair device"</button>
-                    <form method="POST" action="/logout">
-                        <button class="quiet">"Log out"</button>
-                    </form>
-                </div>
+                <details class="menu">
+                    <summary aria-label="Menu">"⋯"</summary>
+                    <div class="menu-panel">
+                        ui::usage(total_bytes: store(cx).total_bytes(), max_total_bytes: config.max_total_bytes)
+                        <button class="quiet" data-on:click="@post('/pair')" data-close-menu="true">"Pair a device"</button>
+                        <form method="POST" action="/logout">
+                            <button class="quiet">"Log out"</button>
+                        </form>
+                    </div>
+                </details>
             </header>
             <div id="pair"></div>
 
@@ -147,25 +151,21 @@ async fn home(cx: &Cx) -> Result<impl View> {
 
             // Works as a plain form; upload.js adds progress, drag-and-drop and paste.
             <form id="send-form" class="send" method="POST" action="/drops" enctype="multipart/form-data" data-max-file=(max_file) data-pairdrop=(config.pairdrop_url.clone())>
-                <textarea name="text" placeholder="Text or link to drop… (or paste / drop files anywhere)"></textarea>
+                <textarea name="text" rows="1" placeholder="Text or link to drop…"></textarea>
                 <div class="send-row">
-                    <label class="file-pick">
+                    <label class="button quiet file-pick">
+                        "Add files"
                         <input type="file" name="files" multiple="true">
                     </label>
                     expiry_select(id: "expiry")
-                    <button>"Drop it"</button>
+                    <button class="send-button">"Drop it"</button>
                 </div>
             </form>
             <ul id="uploads"></ul>
 
             // Opens the live stream; every change replaces #drops.
             <div data-init="@get('/events')"></div>
-            ui::drop_list(
-                drops: store(cx).list(),
-                total_bytes: store(cx).total_bytes(),
-                max_total_bytes: config.max_total_bytes,
-                pairdrop_url: config.pairdrop_url.clone(),
-            )
+            ui::drop_list(drops: store(cx).list(), pairdrop_url: config.pairdrop_url.clone())
         )
     })
 }

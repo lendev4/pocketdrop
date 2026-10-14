@@ -16,45 +16,51 @@ fn age(created_at: u64, now: u64) -> String {
     }
 }
 
-fn expires(drop: &Drop, now: u64) -> String {
+/// Text for drops whose expiry is not a countdown; `None` means show one.
+fn fixed_expiry(drop: &Drop) -> Option<&'static str> {
     if drop.meta.kind == Kind::Handoff {
-        return "gone once opened".to_owned();
-    }
-    if drop.is_once() {
-        return "deleted after first use".to_owned();
-    }
-    match drop.meta.expires_at {
-        None => "kept until deleted".to_owned(),
-        Some(at) => format!("expires in {}", Duration(at.saturating_sub(now))),
+        Some("gone once opened")
+    } else if drop.is_once() {
+        Some("deleted after first use")
+    } else if drop.meta.expires_at.is_none() {
+        Some("kept until deleted")
+    } else {
+        None
     }
 }
 
-/// Everything Datastar replaces on a change, matched by its id.
+/// Storage line for the header menu; patched alongside the list.
 #[component]
-pub async fn drop_list(
-    drops: Vec<Drop>,
-    total_bytes: u64,
-    max_total_bytes: u64,
-    pairdrop_url: String,
-) -> Result<impl View> {
+pub async fn usage(total_bytes: u64, max_total_bytes: u64) -> Result<impl View> {
+    Ok(view! {
+        <p id="usage" class="muted">(format!("{} of {} used", Bytes(total_bytes), Bytes(max_total_bytes)))</p>
+    })
+}
+
+/// Everything Datastar replaces on a change, matched by its id. Times carry
+/// their timestamps so app.js can keep "5 min ago" current between changes.
+#[component]
+pub async fn drop_list(drops: Vec<Drop>, pairdrop_url: String) -> Result<impl View> {
     let now = unix_now();
-    let usage = format!("{} of {} used", Bytes(total_bytes), Bytes(max_total_bytes));
 
     Ok(view! {
         <section id="drops">
             if drops.is_empty() {
-                <p class="empty">"Nothing here yet. Share something!"</p>
+                <div class="empty">
+                    <p class="empty-title">"Nothing here yet"</p>
+                    <ul>
+                        <li>"On your phone: Share → PocketDrop from any app"</li>
+                        <li>"Here: type above, paste with Ctrl+V or drag files onto the page"</li>
+                    </ul>
+                </div>
             } else {
                 <div class="toolbar">
-                    <span class="muted">(usage)</span>
-                    <button class="quiet" data-on:click="confirm('Delete all drops?') && @delete('/drops')">
-                        "Clear all"
-                    </button>
+                    <button class="quiet small" data-clear-all="true">"Clear all"</button>
                 </div>
             }
             <ul>
                 for drop in drops {
-                    <li class="drop" if drop.is_once() { data-once=(drop.id.clone()) }>
+                    <li class="drop" id=(format!("drop-{}", drop.id)) if drop.is_once() { data-once=(drop.id.clone()) }>
                         match (&drop.meta.kind, &drop.meta.file) {
                             (Kind::File, Some(file)) => {
                                 // A preview would count as the one download.
@@ -83,15 +89,28 @@ pub async fn drop_list(
                             }
                         }
                         <div class="meta">
-                            <span>(age(drop.meta.created_at, now))</span>
-                            <span>(expires(&drop, now))</span>
+                            <span data-age=(drop.meta.created_at.to_string())>(age(drop.meta.created_at, now))</span>
+                            match (fixed_expiry(&drop), drop.meta.expires_at) {
+                                (Some(text), _) => { <span>(text)</span> }
+                                (None, Some(at)) => {
+                                    <span data-expires=(at.to_string())>(format!("expires in {}", Duration(at.saturating_sub(now))))</span>
+                                }
+                                (None, None) => {}
+                            }
                             <span class="actions">
-                                if drop.meta.kind == Kind::File {
-                                    <a class="button" href=(format!("/drops/{}/file", drop.id))>"Download"</a>
-                                } else if drop.meta.kind == Kind::Handoff {
-                                    <a class="button" href=(pairdrop_url.clone()) target="_blank" rel="noopener noreferrer" data-consume="true">"Open PairDrop"</a>
-                                } else {
-                                    <button class="quiet" data-copy=(drop.text.clone())>"Copy"</button>
+                                match (&drop.meta.kind, &drop.meta.file) {
+                                    (Kind::File, Some(file)) => {
+                                        if is_previewable(&file.mime) {
+                                            <button class="quiet" data-copy-image=(format!("/drops/{}/file?inline", drop.id))>"Copy"</button>
+                                        }
+                                        <a class="button" href=(format!("/drops/{}/file", drop.id))>"Download"</a>
+                                    }
+                                    (Kind::Handoff, _) => {
+                                        <a class="button" href=(pairdrop_url.clone()) target="_blank" rel="noopener noreferrer" data-consume="true">"Open PairDrop"</a>
+                                    }
+                                    _ => {
+                                        <button class="quiet" data-copy=(drop.text.clone())>"Copy"</button>
+                                    }
                                 }
                                 <button class="quiet" data-on:click=(format!("@delete('/drops/{}')", drop.id))>"Delete"</button>
                             </span>
