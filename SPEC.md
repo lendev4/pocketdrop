@@ -304,7 +304,7 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 
 ## 16. Open questions to check in M0
 
-1. ✅ **Answered in M0:** Android Chrome installs the PWA with the minimal `sw.js` (no fetch handler) and offers it in the Share menu. The share POST arrives **with** the `SameSite=Lax` login cookie.
+1. ✅ **Answered in M0:** Android Chrome installs the PWA with the minimal `sw.js` (no fetch handler) and offers it in the Share menu. The share POST arrives **with** the `SameSite=Lax` login cookie. ✅ File sharing works with an explicit `accept` list (`image/*`, `application/*`, … plus extensions); after changing `share_target` the PWA has to be reinstalled before Android picks it up.
 2. Railway's proxy: ✅ SSE works through it (long idle periods not yet observed). ✅ A 60 MB upload took 22 s and came back byte-identical, so the proxy doesn't block uploads within `MAX_FILE_BYTES`.
 3. ✅ Topcoat 0.10 handles streaming multipart, signed cookies and `public/` at the root. Memory on Railway: about 3 MB idle, peaking under 6 MB while moving a 60 MB file.
 4. Datastar under a strict Content-Security-Policy (it evaluates expressions, so it may need `'unsafe-eval'`).
