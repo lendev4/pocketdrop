@@ -69,7 +69,7 @@ All settings are environment variables.
 | `MAX_TOTAL_BYTES` | `2147483648` (2 GB) | Cap on everything stored |
 | `MAX_DROPS` | `50` | Above this, the oldest drops go (except "until deleted") |
 | `PAIRDROP_URL` | `https://pairdrop.net/` | Direct-transfer service for large files |
-| `TRUSTED_PROXY_HOPS` | `1` | Reverse proxies in front of the app (Railway: 1). Used to find the client's address for the login limit; set `0` when exposed directly. |
+| `TRUSTED_PROXY_HOPS` | `2` | Proxy hops in front of the app, used to find the client's address for the login limit. Railway needs `2`; one reverse proxy such as Caddy needs `1`; `0` when exposed directly. |
 | `HOST`, `PORT` | `127.0.0.1`, `3000` | Bind address (`0.0.0.0` in Docker; Railway sets `PORT`) |
 
 ## Self-hosting with Docker

@@ -57,9 +57,11 @@ async fn main() {
     // files then cost a 304. Downloads set their own Cache-Control.
     let revalidate = SetResponseHeaderLayer::if_not_present(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
 
-    // Railway's edge proxy appends the client's address to X-Forwarded-For;
-    // the login limit needs that address, not the proxy's.
-    let proxy_hops: usize = std::env::var("TRUSTED_PROXY_HOPS").ok().and_then(|n| n.parse().ok()).unwrap_or(1);
+    // The login limit needs the client's address, not a proxy's. Railway
+    // sends `X-Forwarded-For: <client>, <edge node>` (measured; the edge
+    // node varies per request and client-sent values are dropped), so the
+    // client is two hops away.
+    let proxy_hops: usize = std::env::var("TRUSTED_PROXY_HOPS").ok().and_then(|n| n.parse().ok()).unwrap_or(2);
 
     let router = module_router!()
         .trusted_proxies(TrustedProxies::new().nearest(proxy_hops))
