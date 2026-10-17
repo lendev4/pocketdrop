@@ -32,7 +32,7 @@ async fn page(cx: &Cx) -> Result<impl View> {
                     <a class="share-home" href="/">"Open PocketDrop"</a>
                 </div>
             </section>
-            <script src="/send.js" defer="true"></script>
+            <script src=(crate::assets::url("/send.js")) defer="true"></script>
         )
     })
 }

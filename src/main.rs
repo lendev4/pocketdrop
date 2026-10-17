@@ -1,4 +1,5 @@
 mod api;
+mod assets;
 mod auth;
 mod config;
 mod drops;
@@ -13,13 +14,16 @@ mod share;
 mod store;
 mod ui;
 
-use std::{sync::Arc, time::Duration};
+use std::{path::Path, sync::Arc, time::Duration};
+
+use http::{HeaderValue, header};
+use tower_http::set_header::SetResponseHeaderLayer;
 
 use topcoat::{
     Result,
     context::{Cx, app_context},
     cookie::RouterBuilderCookieExt,
-    router::{BodyLimit, RouterBuilderDirectoryExt, module_router, page},
+    router::{BodyLimit, RouterBuilderDirectoryExt, module_router, page, tower::TowerLayer},
     view::{Child, View, component, view},
 };
 
@@ -30,6 +34,7 @@ async fn main() {
     let auth = Auth::from_env();
     let config = Config::from_env();
     let store = Arc::new(Store::open(&config).await.expect("cannot open data directory"));
+    assets::init(Path::new("public"));
 
     // Expired drops vanish from open pages when this deletes them.
     let cleaner = Arc::clone(&store);
@@ -48,7 +53,12 @@ async fn main() {
         .saturating_add(config.max_text_bytes)
         .saturating_add(64 * 1024);
 
+    // Browsers must check back before reusing a cached response; unchanged
+    // files then cost a 304. Downloads set their own Cache-Control.
+    let revalidate = SetResponseHeaderLayer::if_not_present(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+
     let router = module_router!()
+        .layer(TowerLayer::new(revalidate))
         .cookies()
         .layer(BodyLimit::max(upload_limit).at("/drops"))
         .layer(BodyLimit::max(upload_limit).at("/share"))
@@ -85,13 +95,13 @@ pub async fn shell(title: &str, #[default] child: Child<'_>) -> Result<impl View
                 <meta name="theme-color" content="#f6f6f9" media="(prefers-color-scheme: light)">
                 <meta name="theme-color" content="#131218" media="(prefers-color-scheme: dark)">
                 <title>(title)</title>
-                <link rel="manifest" href="/manifest.json">
+                <link rel="manifest" href=(assets::url("/manifest.json"))>
                 <link rel="icon" href="/icons/icon-192.png">
-                <link rel="stylesheet" href="/app.css">
+                <link rel="stylesheet" href=(assets::url("/app.css"))>
                 <script type="module" src="/vendor/datastar-1.0.2.js"></script>
-                <script src="/share-store.js" defer="true"></script>
-                <script src="/upload.js" defer="true"></script>
-                <script src="/app.js" defer="true"></script>
+                <script src=(assets::url("/share-store.js")) defer="true"></script>
+                <script src=(assets::url("/upload.js")) defer="true"></script>
+                <script src=(assets::url("/app.js")) defer="true"></script>
                 topcoat::dev::script()
             </head>
             <body>
