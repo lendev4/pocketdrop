@@ -122,14 +122,11 @@ pub async fn expiry_select(cx: &Cx, id: &str) -> Result<impl View> {
         .collect();
 
     Ok(view! {
-        <label class="expiry">
-            "Keep for "
-            <select name="expiry" id=(id)>
-                for (value, label, selected) in options {
-                    <option value=(value) if selected { selected="true" }>(label)</option>
-                }
-            </select>
-        </label>
+        <select name="expiry" id=(id) class="expiry" aria-label="How long to keep it">
+            for (value, label, selected) in options {
+                <option value=(value) if selected { selected="true" }>(label)</option>
+            }
+        </select>
     })
 }
 

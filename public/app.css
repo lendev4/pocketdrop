@@ -78,7 +78,7 @@ button.small, .drop .actions button, .drop .actions a.button { padding: 0.3rem 0
 button:disabled { opacity: 0.5; cursor: default; }
 
 select {
-  padding: 0.45rem 0.5rem;
+  padding: 0.5rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   background: var(--card);
@@ -129,12 +129,16 @@ form.send textarea {
   max-height: 12rem;
   resize: none;
 }
-.send-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-.send-row .send-button { margin-left: auto; }
+.send-row { display: flex; gap: 0.5rem; align-items: center; }
+/* The choice takes the space between the two buttons and may shrink. */
+.send-row select.expiry { flex: 1 1 0; }
+.send-row .file-pick, .send-row .send-button { flex: none; }
 .file-pick { position: relative; overflow: hidden; }
 /* The real input stays in the form (for plain posts) but out of sight. */
 .file-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.expiry { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
+/* The send row's controls share one height and text size. */
+.send-row > *, .share-controls select { height: 2.6rem; font-size: 0.95rem; }
+select.expiry { color: var(--muted); min-width: 0; text-overflow: ellipsis; }
 .check { color: var(--muted); font-size: 0.9rem; display: flex; gap: 0.4rem; align-items: center; }
 .check input { width: auto; }
 

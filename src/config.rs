@@ -80,12 +80,12 @@ impl Expiry {
         }
     }
 
-    /// Wording for the send form.
+    /// Wording for the send form; each choice reads on its own, without a label.
     pub fn describe(self) -> String {
         match self {
-            Self::After(secs) => Duration(secs).to_string(),
-            Self::Never => "Until deleted".to_owned(),
-            Self::Once => "Until first use".to_owned(),
+            Self::After(secs) => format!("Keep {}", Duration(secs)),
+            Self::Never => "Keep until deleted".to_owned(),
+            Self::Once => "Keep until used".to_owned(),
         }
     }
 
