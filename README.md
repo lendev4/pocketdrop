@@ -27,7 +27,7 @@ The Railway Hobby plan's included usage is plenty: the app idles at a few MB of 
 
 ## Using it
 
-**On Android:** open the site in Chrome, log in, then **⋮ → Install app** (or *Add to Home screen*). After that, **Share → PocketDrop** works from any app. If you change the app's share settings or icon later, uninstall and reinstall it so Android picks the changes up.
+**On Android:** open the site in Chrome, log in, then **⋮ → Install app** (or *Add to Home screen*). After that, **Share → PocketDrop** works from any app. Android stores the app's name, icon, colours and share settings at install time. After changing them, open `chrome://webapks` in Chrome and press **Update** for PocketDrop, or uninstall the app fully (long-press → **App info** → **Uninstall**; removing the home-screen icon is not enough) and install it again.
 
 **Adding more devices:** on a logged-in device, open **⋯ → Pair a device** and scan the QR code with the other device's camera. The link works once, for 5 minutes.
 
