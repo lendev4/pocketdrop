@@ -152,6 +152,10 @@ async fn home(cx: &Cx) -> Result<impl View> {
                     <summary aria-label="Menu">"⋯"</summary>
                     <div class="menu-panel">
                         ui::usage(total_bytes: store(cx).total_bytes(), max_total_bytes: config.max_total_bytes)
+                        <label class="check menu-check">
+                            <input type="checkbox" data-auto-send="true">
+                            " Send shares right away"
+                        </label>
                         <button class="quiet" data-on:click="@post('/pair')" data-close-menu="true">"Pair a device"</button>
                         <form method="POST" action="/logout">
                             <button class="quiet">"Log out"</button>

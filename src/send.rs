@@ -25,7 +25,7 @@ async fn page(cx: &Cx) -> Result<impl View> {
                 <div class="share-controls">
                     expiry_select(id: "share-expiry")
                     <label class="check">
-                        <input type="checkbox" id="share-auto">
+                        <input type="checkbox" id="share-auto" data-auto-send="true">
                         " Send right away next time"
                     </label>
                     <button id="share-send" class="send-button wide" disabled="true">"Send"</button>

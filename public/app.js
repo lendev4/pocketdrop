@@ -19,6 +19,13 @@ for (const select of document.querySelectorAll('select[name="expiry"]')) {
   select.addEventListener("change", () => storage((s) => s.setItem(EXPIRY_KEY, select.value)));
 }
 
+// "Send shares right away" (send screen and menu), remembered per device.
+const AUTO_KEY = "pocketdrop.autoSend";
+for (const box of document.querySelectorAll("input[data-auto-send]")) {
+  box.checked = storage((s) => s.getItem(AUTO_KEY)) === "1";
+  box.addEventListener("change", () => storage((s) => s.setItem(AUTO_KEY, box.checked ? "1" : "0")));
+}
+
 // A `once` drop is used up by copying it or opening its link.
 function consume(element) {
   const id = element.closest("[data-once]")?.dataset.once;

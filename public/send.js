@@ -2,7 +2,6 @@
 // the user pick an expiry, then uploads it. The share is only forgotten once
 // everything is on the server.
 (async () => {
-  const AUTO_KEY = "pocketdrop.autoSend";
   const section = document.getElementById("share");
   const preview = document.getElementById("share-preview");
   const sendButton = document.getElementById("share-send");
@@ -12,20 +11,7 @@
   const list = document.getElementById("uploads");
   const options = { maxFileBytes: Number(section.dataset.maxFile) || 0, pairdropUrl: section.dataset.pairdrop };
 
-  const readAuto = () => {
-    try {
-      return localStorage.getItem(AUTO_KEY) === "1";
-    } catch {
-      return false;
-    }
-  };
-  auto.checked = readAuto();
-  auto.addEventListener("change", () => {
-    try {
-      localStorage.setItem(AUTO_KEY, auto.checked ? "1" : "0");
-    } catch {}
-  });
-
+  // app.js has already set the checkbox from this device's setting.
   let share;
   try {
     share = await ShareStore.load();
