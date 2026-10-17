@@ -81,7 +81,9 @@ pub async fn shell(title: &str, #[default] child: Child<'_>) -> Result<impl View
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <meta name="theme-color" content="#4f46e5">
+                // System bars match the page background in both themes.
+                <meta name="theme-color" content="#f6f6f9" media="(prefers-color-scheme: light)">
+                <meta name="theme-color" content="#131218" media="(prefers-color-scheme: dark)">
                 <title>(title)</title>
                 <link rel="manifest" href="/manifest.json">
                 <link rel="icon" href="/icons/icon-192.png">

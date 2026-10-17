@@ -55,7 +55,7 @@ textarea, input {
   font: inherit;
 }
 
-button, a.button {
+button, a.button, label.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
