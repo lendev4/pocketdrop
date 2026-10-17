@@ -113,7 +113,8 @@ Every drop has one expiry rule, chosen when sending:
   - Flags: `HttpOnly`, `Secure`, `SameSite=Lax`.
   - Nothing is stored server-side. The server only checks the signature and age.
 - **Forged requests from other sites:** every state-changing request must have an `Origin` header matching the site, plus `SameSite`.
-- **Brute force:** login attempts are rate-limited per IP, e.g. 5 per minute, held in memory.
+- **Brute force:** after 5 failed passphrase or API token attempts from one address within a minute, that address is refused for the rest of the minute (in memory). The client address comes from `X-Forwarded-For`, trusting `TRUSTED_PROXY_HOPS` proxies (default 1, Railway's edge).
+- **No page Content-Security-Policy:** decided against. Content is escaped, links are `http(s)` only and files are never rendered as pages, while Datastar would need `unsafe-eval`, which removes most of a CSP's value. Downloads do carry a sandboxing CSP.
 - **Revoking access:** changing `SESSION_SECRET` invalidates every cookie on every device.
 
 ### 6.2 QR pairing
@@ -265,6 +266,7 @@ Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requir
 | `DEFAULT_EXPIRY` | | `24h` |
 | `EXPIRY_OPTIONS` | | `once,5m,10m,1h,24h,7d,never` |
 | `MAX_FILE_BYTES` / `MAX_TEXT_BYTES` / `MAX_TOTAL_BYTES` / `MAX_DROPS` | | see §7 |
+| `TRUSTED_PROXY_HOPS` | | `1` |
 | `PAIRDROP_URL` | | `https://pairdrop.net/` |
 | `PORT` | | provided by Railway |
 

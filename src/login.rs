@@ -11,12 +11,16 @@ use topcoat::{
     view::{View, view},
 };
 
-use crate::{auth, shell};
+use crate::{
+    auth::{self, LoginResult},
+    shell,
+};
 
 #[page]
 async fn page(cx: &Cx) -> Result<impl View> {
     let query = uri(cx).query().unwrap_or_default();
     let failed = query.split('&').any(|pair| pair == "error=1");
+    let blocked = query.split('&').any(|pair| pair == "error=wait");
     let next = auth::safe_next(
         query.split('&').find_map(|pair| pair.strip_prefix("next=")),
     )
@@ -30,6 +34,9 @@ async fn page(cx: &Cx) -> Result<impl View> {
                 <input type="password" name="passphrase" placeholder="Passphrase" autocomplete="current-password" required="true" autofocus="true">
                 if failed {
                     <p class="error">"Wrong passphrase."</p>
+                }
+                if blocked {
+                    <p class="error">"Too many attempts. Wait a minute and try again."</p>
                 }
                 <button>"Log in"</button>
             </form>
@@ -46,11 +53,14 @@ struct LoginForm {
 #[route(POST)]
 async fn login(cx: &Cx, Form(form): Form<LoginForm>) -> Result<SeeOther> {
     let next = auth::safe_next(form.next.as_deref());
-    if auth::log_in(cx, &form.passphrase) {
-        Ok(see_other(next))
-    } else if next == "/" {
-        Ok(see_other("/login?error=1"))
+    let error = match auth::log_in(cx, &form.passphrase) {
+        LoginResult::LoggedIn => return Ok(see_other(next)),
+        LoginResult::WrongPassphrase => "1",
+        LoginResult::TooManyAttempts => "wait",
+    };
+    if next == "/" {
+        Ok(see_other(format!("/login?error={error}")))
     } else {
-        Ok(see_other(format!("/login?error=1&next={next}")))
+        Ok(see_other(format!("/login?error={error}&next={next}")))
     }
 }

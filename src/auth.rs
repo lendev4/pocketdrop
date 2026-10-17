@@ -1,15 +1,20 @@
 //! Single-user login: one passphrase, then a signed cookie holding the time
 //! it was issued. Nothing is stored server-side.
 
-use std::env;
+use std::{
+    collections::HashMap,
+    env,
+    net::IpAddr,
+    sync::{Mutex, PoisonError},
+};
 
 use topcoat::{
     Result,
     context::{Cx, app_context},
     cookie::{Cookie, Cookies, Key, SameSite, signed_cookies, time::Duration},
     router::{
-        error::{forbidden, not_found, redirect, unauthorized},
-        request::{headers, uri},
+        error::{forbidden, not_found, redirect, too_many_requests, unauthorized},
+        request::{client_ip, headers, uri},
     },
 };
 
@@ -23,6 +28,47 @@ pub struct Auth {
     session_days: u64,
     /// Enables the `/api` routes when set.
     api_token: Option<String>,
+    limiter: Limiter,
+}
+
+/// Failed passphrase or API token attempts allowed per address and window.
+const MAX_FAILURES: u32 = 5;
+const WINDOW_SECS: u64 = 60;
+
+/// Counts failed logins per client address, so a weak passphrase can't be
+/// guessed quickly. In memory only; a restart forgets the counts.
+#[derive(Default)]
+struct Limiter {
+    failures: Mutex<HashMap<Option<IpAddr>, (u64, u32)>>,
+}
+
+impl Limiter {
+    fn is_blocked(&self, ip: Option<IpAddr>, now: u64) -> bool {
+        self.lock()
+            .get(&ip)
+            .is_some_and(|&(start, count)| now < start + WINDOW_SECS && count >= MAX_FAILURES)
+    }
+
+    fn record_failure(&self, ip: Option<IpAddr>, now: u64) {
+        let mut failures = self.lock();
+        failures.retain(|_, &mut (start, _)| now < start + WINDOW_SECS);
+        let entry = failures.entry(ip).or_insert((now, 0));
+        entry.1 += 1;
+    }
+
+    fn clear(&self, ip: Option<IpAddr>) {
+        self.lock().remove(&ip);
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<Option<IpAddr>, (u64, u32)>> {
+        self.failures.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+pub enum LoginResult {
+    LoggedIn,
+    WrongPassphrase,
+    TooManyAttempts,
 }
 
 impl Auth {
@@ -46,7 +92,7 @@ impl Auth {
 
         let api_token = env::var("API_TOKEN").ok().filter(|token| !token.is_empty());
 
-        Self { key, passphrase, session_days, api_token }
+        Self { key, passphrase, session_days, api_token, limiter: Limiter::default() }
     }
 }
 
@@ -108,9 +154,14 @@ pub fn require_same_origin(cx: &Cx) -> Result<()> {
 /// For `/api`: requires `Authorization: Bearer <API_TOKEN>`. Without a
 /// configured token the API does not exist.
 pub fn require_token(cx: &Cx) -> Result<()> {
-    let Some(expected) = &app_context::<Auth>(cx).api_token else {
+    let auth = app_context::<Auth>(cx);
+    let Some(expected) = &auth.api_token else {
         return Err(not_found().into());
     };
+    let (ip, now) = (client_ip(cx), unix_now());
+    if auth.limiter.is_blocked(ip, now) {
+        return Err(too_many_requests(WINDOW_SECS).into());
+    }
     let sent = headers(cx)
         .get("authorization")
         .and_then(|value| value.to_str().ok())
@@ -119,18 +170,25 @@ pub fn require_token(cx: &Cx) -> Result<()> {
     if constant_time_eq(sent.as_bytes(), expected.as_bytes()) {
         Ok(())
     } else {
+        auth.limiter.record_failure(ip, now);
         Err(unauthorized().into())
     }
 }
 
 /// Checks the passphrase and, if it matches, sets the session cookie.
-pub fn log_in(cx: &Cx, passphrase: &str) -> bool {
+pub fn log_in(cx: &Cx, passphrase: &str) -> LoginResult {
     let auth = app_context::<Auth>(cx);
-    if !constant_time_eq(passphrase.as_bytes(), auth.passphrase.as_bytes()) {
-        return false;
+    let (ip, now) = (client_ip(cx), unix_now());
+    if auth.limiter.is_blocked(ip, now) {
+        return LoginResult::TooManyAttempts;
     }
+    if !constant_time_eq(passphrase.as_bytes(), auth.passphrase.as_bytes()) {
+        auth.limiter.record_failure(ip, now);
+        return LoginResult::WrongPassphrase;
+    }
+    auth.limiter.clear(ip);
     start_session(cx);
-    true
+    LoginResult::LoggedIn
 }
 
 /// Sets the session cookie on this device.
@@ -154,4 +212,35 @@ pub fn log_out(cx: &Cx) {
 
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && a.iter().zip(b).fold(0, |diff, (x, y)| diff | (x ^ y)) == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn limiter_blocks_after_max_failures_within_window() {
+        let limiter = Limiter::default();
+        let ip = Some(IpAddr::from([203, 0, 113, 7]));
+        for _ in 0..MAX_FAILURES {
+            assert!(!limiter.is_blocked(ip, 1000));
+            limiter.record_failure(ip, 1000);
+        }
+        assert!(limiter.is_blocked(ip, 1000));
+        // Other addresses are unaffected; the block ends with the window.
+        assert!(!limiter.is_blocked(Some(IpAddr::from([203, 0, 113, 8])), 1000));
+        assert!(!limiter.is_blocked(ip, 1000 + WINDOW_SECS));
+    }
+
+    #[test]
+    fn success_clears_failures() {
+        let limiter = Limiter::default();
+        let ip = Some(IpAddr::from([203, 0, 113, 7]));
+        for _ in 0..MAX_FAILURES - 1 {
+            limiter.record_failure(ip, 1000);
+        }
+        limiter.clear(ip);
+        limiter.record_failure(ip, 1000);
+        assert!(!limiter.is_blocked(ip, 1000));
+    }
 }

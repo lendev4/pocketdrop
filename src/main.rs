@@ -23,7 +23,7 @@ use topcoat::{
     Result,
     context::{Cx, app_context},
     cookie::RouterBuilderCookieExt,
-    router::{BodyLimit, RouterBuilderDirectoryExt, module_router, page, tower::TowerLayer},
+    router::{BodyLimit, RouterBuilderDirectoryExt, TrustedProxies, module_router, page, tower::TowerLayer},
     view::{Child, View, component, view},
 };
 
@@ -57,7 +57,12 @@ async fn main() {
     // files then cost a 304. Downloads set their own Cache-Control.
     let revalidate = SetResponseHeaderLayer::if_not_present(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
 
+    // Railway's edge proxy appends the client's address to X-Forwarded-For;
+    // the login limit needs that address, not the proxy's.
+    let proxy_hops: usize = std::env::var("TRUSTED_PROXY_HOPS").ok().and_then(|n| n.parse().ok()).unwrap_or(1);
+
     let router = module_router!()
+        .trusted_proxies(TrustedProxies::new().nearest(proxy_hops))
         .layer(TowerLayer::new(revalidate))
         .cookies()
         .layer(BodyLimit::max(upload_limit).at("/drops"))

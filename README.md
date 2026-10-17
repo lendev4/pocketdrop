@@ -69,6 +69,7 @@ All settings are environment variables.
 | `MAX_TOTAL_BYTES` | `2147483648` (2 GB) | Cap on everything stored |
 | `MAX_DROPS` | `50` | Above this, the oldest drops go (except "until deleted") |
 | `PAIRDROP_URL` | `https://pairdrop.net/` | Direct-transfer service for large files |
+| `TRUSTED_PROXY_HOPS` | `1` | Reverse proxies in front of the app (Railway: 1). Used to find the client's address for the login limit; set `0` when exposed directly. |
 | `HOST`, `PORT` | `127.0.0.1`, `3000` | Bind address (`0.0.0.0` in Docker; Railway sets `PORT`) |
 
 ## Self-hosting with Docker
@@ -101,6 +102,7 @@ Then open <http://127.0.0.1:3000>. `cargo test` runs the unit tests; `python3 sc
 ## Security
 
 - Single user: one passphrase, signed long-lived cookies, an `Origin` check on every change, and a constant-time passphrase comparison.
+- After 5 wrong passphrases or API tokens from one address within a minute, that address has to wait a minute.
 - Uploaded files are always served as downloads with `nosniff` and a sandboxing Content-Security-Policy; only raster images are shown inline.
 - Content is protected by HTTPS and the login, and stored unencrypted on the server. It is not end-to-end encrypted.
 
