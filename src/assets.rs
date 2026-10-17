@@ -13,7 +13,7 @@ static VERSION: OnceLock<String> = OnceLock::new();
 
 /// Files the pages reference directly. The service worker keeps its fixed
 /// URL: browsers check it for updates on their own.
-const FILES: [&str; 6] = ["app.css", "app.js", "upload.js", "send.js", "share-store.js", "manifest.json"];
+const FILES: [&str; 7] = ["app.css", "app.js", "upload.js", "send.js", "open.js", "share-store.js", "manifest.json"];
 
 /// Hashes the referenced files once at startup.
 pub fn init(public_dir: &Path) {

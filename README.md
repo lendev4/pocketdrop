@@ -31,7 +31,7 @@ The Railway Hobby plan's included usage is plenty: the app idles at a few MB of 
 
 **Adding more devices:** on a logged-in device, open **⋯ → Pair a device** and scan the QR code with the other device's camera. The link works once, for 5 minutes.
 
-**On the desktop:** keep the page open in a tab. Type or paste text, press **Ctrl+V** anywhere to send the clipboard (text or a screenshot), or drag files onto the page.
+**On the desktop:** keep the page open in a tab. Type or paste text, press **Ctrl+V** anywhere to send the clipboard (text or a screenshot), or drag files onto the page. Installed as an app (Chrome, Edge or another Chromium browser: **Install PocketDrop** in the address bar or menu), it also appears under **Open with** in your file manager for common file types, such as images, PDFs, documents and archives. Chromium asks once for permission the first time.
 
 **Large files:** files over the limit get a **Send with PairDrop** button. Open <https://pairdrop.net> once in the browser on each device and pair them there (one time); afterwards PocketDrop opens PairDrop with the file ready to send, and your other devices get an *Incoming via PairDrop* notice. This uses undocumented PairDrop behaviour and may break if PairDrop changes.
 

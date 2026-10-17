@@ -73,5 +73,69 @@
         }
       ]
     }
-  }
+  },
+  "file_handlers": [
+    {
+      "action": "/open",
+      "launch_type": "single-client",
+      "accept": {
+        "image/jpeg": [
+          ".jpg",
+          ".jpeg"
+        ],
+        "image/png": [
+          ".png"
+        ],
+        "image/gif": [
+          ".gif"
+        ],
+        "image/webp": [
+          ".webp"
+        ],
+        "application/pdf": [
+          ".pdf"
+        ],
+        "text/plain": [
+          ".txt"
+        ],
+        "text/markdown": [
+          ".md"
+        ],
+        "text/csv": [
+          ".csv"
+        ],
+        "application/zip": [
+          ".zip"
+        ],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+          ".docx"
+        ],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx"
+        ],
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
+          ".pptx"
+        ],
+        "application/vnd.oasis.opendocument.text": [
+          ".odt"
+        ],
+        "application/vnd.oasis.opendocument.spreadsheet": [
+          ".ods"
+        ],
+        "audio/mpeg": [
+          ".mp3"
+        ],
+        "video/mp4": [
+          ".mp4"
+        ]
+      },
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }

@@ -8,6 +8,7 @@ mod healthz;
 mod ingest;
 mod login;
 mod logout;
+mod open;
 mod pair;
 mod send;
 mod share;
