@@ -143,9 +143,39 @@ function refreshTimes() {
 setInterval(refreshTimes, 30000);
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refreshTimes());
 
+// Long text is clamped in the list. "Show more" appears only when something
+// is actually cut off; expanded drops stay expanded across live updates.
+const expanded = new Set();
+
+function updateClamps() {
+  for (const content of document.querySelectorAll("#drops .content.clamp")) {
+    const li = content.closest("li.drop");
+    const toggle = li?.querySelector("[data-more]");
+    if (!toggle) continue;
+    const open = expanded.has(li.id);
+    content.classList.toggle("expanded", open);
+    toggle.hidden = !open && content.scrollHeight <= content.clientHeight + 1;
+    const label = open ? "Show less" : "Show more";
+    // Only touch the text when it changes: text changes would retrigger the observer below.
+    if (toggle.textContent !== label) toggle.textContent = label;
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-more]");
+  const li = toggle?.closest("li.drop");
+  if (!li) return;
+  if (expanded.has(li.id)) expanded.delete(li.id);
+  else expanded.add(li.id);
+  updateClamps();
+});
+window.addEventListener("resize", updateClamps);
+updateClamps();
+
 // Briefly highlights drops that arrive while the page is open.
 const seen = new Set([...document.querySelectorAll("li.drop[id]")].map((li) => li.id));
 new MutationObserver(() => {
+  updateClamps();
   for (const li of document.querySelectorAll("li.drop[id]")) {
     if (seen.has(li.id)) continue;
     seen.add(li.id);

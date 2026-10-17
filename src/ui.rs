@@ -81,11 +81,14 @@ pub async fn drop_list(drops: Vec<Drop>, pairdrop_url: String) -> Result<impl Vi
                                     <span class="muted">(Bytes(file.size).to_string())</span>
                                 </div>
                             }
+                            // Long content is clamped; app.js reveals "Show more" when needed.
                             (Kind::Link, _) => {
-                                <a class="content" href=(drop.text.trim().to_owned()) target="_blank" rel="noopener noreferrer">(drop.text.clone())</a>
+                                <a class="content clamp link" href=(drop.text.trim().to_owned()) target="_blank" rel="noopener noreferrer">(drop.text.clone())</a>
+                                <button class="more" data-more="true" hidden="true">"Show more"</button>
                             }
                             _ => {
-                                <div class="content">(drop.text.clone())</div>
+                                <div class="content clamp">(drop.text.clone())</div>
+                                <button class="more" data-more="true" hidden="true">"Show more"</button>
                             }
                         }
                         <div class="meta">

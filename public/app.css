@@ -162,6 +162,22 @@ button.armed { color: var(--danger); border-color: var(--danger); }
 }
 .drop.fresh { background: var(--accent-soft); border-color: var(--accent); transition: none; }
 .content { white-space: pre-wrap; overflow-wrap: anywhere; }
+.content.clamp:not(.expanded) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+}
+.content.clamp.link:not(.expanded) { -webkit-line-clamp: 3; line-clamp: 3; }
+button.more {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
 .drop .meta { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
 .drop .meta .actions { margin-left: auto; display: flex; gap: 0.4rem; }
 .preview {
