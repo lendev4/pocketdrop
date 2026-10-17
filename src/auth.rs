@@ -183,6 +183,10 @@ pub fn log_in(cx: &Cx, passphrase: &str) -> LoginResult {
         return LoginResult::TooManyAttempts;
     }
     if !constant_time_eq(passphrase.as_bytes(), auth.passphrase.as_bytes()) {
+        // TEMPORARY: measure which proxy headers carry the client address.
+        let h = headers(cx);
+        let get = |name: &str| h.get(name).and_then(|v| v.to_str().ok()).unwrap_or("-").to_owned();
+        eprintln!("ipdebug client_ip={ip:?} xff={} x-real-ip={} forwarded={}", get("x-forwarded-for"), get("x-real-ip"), get("forwarded"));
         auth.limiter.record_failure(ip, now);
         return LoginResult::WrongPassphrase;
     }
