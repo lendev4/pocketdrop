@@ -35,6 +35,8 @@ The Railway Hobby plan's included usage is plenty: the app idles at a few MB of 
 
 **On the desktop:** keep the page open in a tab. Type or paste text, press **Ctrl+V** anywhere to send the clipboard (text or a screenshot), or drag files onto the page. Installed as an app (Chrome, Edge or another Chromium browser: **Install PocketDrop** in the address bar or menu), it also appears under **Open with** in your file manager for common file types, such as images, PDFs, documents and archives. Chromium asks once for permission the first time.
 
+**Lost a device?** Open **⋯ → Log out other devices** and tap twice. Every other device is logged out; the one you're using stays logged in, so you can approve your other devices again from it. The terminal API token is not affected; change `API_TOKEN` separately if needed.
+
 **Large files:** files over the limit get a **Send with PairDrop** button. Open <https://pairdrop.net> once in the browser on each device and pair them there (one time); afterwards PocketDrop opens PairDrop with the file ready to send, and your other devices get an *Incoming via PairDrop* notice. This uses undocumented PairDrop behaviour and may break if PairDrop changes.
 
 ## Terminal API
@@ -61,7 +63,7 @@ All settings are environment variables.
 |---|---|---|
 | `PASSPHRASE` | (required) | The login passphrase |
 | `SESSION_SECRET` | (required) | At least 64 random bytes; signs login cookies. Changing it logs out every device. |
-| `SESSION_DAYS` | `365` | How long a device stays logged in |
+| `SESSION_DAYS` | `365` | How long a device stays logged in without being used; each use (at most once a day) starts the period again |
 | `API_TOKEN` | unset | Enables the terminal API |
 | `DATA_DIR` | `data` (`/data` in Docker) | Where drops are stored |
 | `DEFAULT_EXPIRY` | `24h` (`once` in the template) | Preselected expiry for new devices |

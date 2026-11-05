@@ -70,6 +70,20 @@ document.addEventListener("click", async (event) => {
   const link = target.closest("a.content, a[data-consume]");
   if (link) consume(link);
 
+  // Buttons with data-confirm-tap submit on the second tap only.
+  const confirmTap = target.closest("[data-confirm-tap]");
+  if (confirmTap && !confirmTap.classList.contains("armed")) {
+    event.preventDefault();
+    const label = confirmTap.textContent;
+    confirmTap.classList.add("armed");
+    confirmTap.textContent = confirmTap.dataset.confirmTap;
+    setTimeout(() => {
+      confirmTap.classList.remove("armed");
+      confirmTap.textContent = label;
+    }, 3000);
+    return;
+  }
+
   // Clear all asks for a second tap instead of a browser dialog.
   const clear = target.closest("[data-clear-all]");
   if (clear) {

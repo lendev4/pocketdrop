@@ -81,6 +81,7 @@ It is **not** an archive or an inbox to organise. Drops are short-lived and are 
 - **Pair a device:** on a logged-in device choose **Pair device**. Scan the QR code with the other device and it's logged in (§6.2).
 - **Log in by approval:** the login page also shows a QR code and a short code. Scan it with a logged-in device, or type the code there under **⋯ → Enter a login code**, and approve; the waiting page logs in (§6.2a).
 - **Log out:** removes the cookie on that device only.
+- **Log out other devices:** **⋯ → Log out other devices** (tap twice) logs out every device except this one (§6.1).
 - **Log out everywhere:** rotate `SESSION_SECRET` and redeploy (§6.1).
 
 ## 5. Expiry
@@ -110,13 +111,13 @@ Every drop has one expiry rule, chosen when sending:
 ### 6.1 Passphrase plus signed cookie
 
 - The `PASSPHRASE` environment variable holds the only password.
-- A successful login sets a cookie signed with `SESSION_SECRET`, valid for `SESSION_DAYS` (default 365).
+- A successful login sets a cookie signed with `SESSION_SECRET`, valid for `SESSION_DAYS` (default 365). The login rolls: when a device uses a cookie older than a day, the server re-issues it, so a device stays logged in while it's used and is logged out after `SESSION_DAYS` without use.
   - Flags: `HttpOnly`, `Secure`, `SameSite=Lax`.
   - Nothing is stored server-side. The server only checks the signature and age.
 - **Forged requests from other sites:** every state-changing request must have an `Origin` header matching the site, plus `SameSite`.
 - **Brute force:** after 5 failed passphrase or API token attempts from one address within a minute, that address is refused for the rest of the minute (in memory). The client address comes from `X-Forwarded-For`, trusting `TRUSTED_PROXY_HOPS` proxies. Default 2, measured on Railway: it sends `X-Forwarded-For: <client>, <edge node>`, the edge node varies per request, and client-supplied values are dropped.
 - **No page Content-Security-Policy:** decided against. Content is escaped, links are `http(s)` only and files are never rendered as pages, while Datastar would need `unsafe-eval`, which removes most of a CSP's value. Downloads do carry a sandboxing CSP.
-- **Revoking access:** changing `SESSION_SECRET` invalidates every cookie on every device.
+- **Revoking access:** **Log out other devices** saves the current time to `<DATA_DIR>/logged-out-before`; cookies issued at or before it are rejected, and the device that asked gets a new cookie dated one second later. Changing `SESSION_SECRET` invalidates every cookie on every device, including this one. Neither affects `API_TOKEN`.
 
 ### 6.2 QR pairing
 
@@ -238,6 +239,7 @@ Live list, Copy, Delete, Clear all and the pairing dialog are Datastar attribute
 | `GET` | `/` | Main page: drop list and send area |
 | `GET` / `POST` | `/login` | Login form / check passphrase |
 | `POST` | `/logout` | Delete the cookie on this device |
+| `POST` | `/logout/others` | Log out every other device |
 | `GET` | `/events` | SSE stream (Datastar patches) |
 | `POST` | `/drops` | Create a drop (multipart: `text` or `file`, plus `expiry`) |
 | `GET` | `/drops/:id/download` | Download a file (`Content-Disposition: attachment`) |

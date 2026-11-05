@@ -1,11 +1,18 @@
 //! Single-user login: one passphrase, then a signed cookie holding the time
-//! it was issued. Nothing is stored server-side.
+//! it was issued. The only server-side state is one time in
+//! `<DATA_DIR>/logged-out-before`: cookies issued before it are rejected
+//! ("Log out other devices").
 
 use std::{
     collections::HashMap,
     env,
+    io,
     net::IpAddr,
-    sync::{Mutex, PoisonError},
+    path::{Path, PathBuf},
+    sync::{
+        Mutex, PoisonError,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use topcoat::{
@@ -21,6 +28,8 @@ use topcoat::{
 use crate::store::unix_now;
 
 const COOKIE: &str = "pd_session";
+/// At most one cookie re-issue per device and day.
+const REFRESH_SECS: u64 = 86_400;
 
 pub struct Auth {
     pub key: Key,
@@ -29,6 +38,9 @@ pub struct Auth {
     /// Enables the `/api` routes when set.
     api_token: Option<String>,
     limiter: Limiter,
+    /// Cookies issued at or before this Unix time are rejected.
+    logged_out_before: AtomicU64,
+    logged_out_file: PathBuf,
 }
 
 /// Failed passphrase or API token attempts allowed per address and window.
@@ -92,16 +104,47 @@ impl Auth {
 
         let api_token = env::var("API_TOKEN").ok().filter(|token| !token.is_empty());
 
-        Self { key, passphrase, session_days, api_token, limiter: Limiter::default() }
+        Self {
+            key,
+            passphrase,
+            session_days,
+            api_token,
+            limiter: Limiter::default(),
+            logged_out_before: AtomicU64::new(0),
+            logged_out_file: PathBuf::new(),
+        }
+    }
+
+    /// Reads the "logged out before" time kept in the data directory.
+    pub fn load_logged_out_before(&mut self, data_dir: &Path) {
+        self.logged_out_file = data_dir.join("logged-out-before");
+        let before = std::fs::read_to_string(&self.logged_out_file)
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+            .unwrap_or(0);
+        self.logged_out_before = AtomicU64::new(before);
     }
 }
 
+/// Checks the login cookie. Logins roll: a valid cookie older than
+/// [`REFRESH_SECS`] is re-issued, so a device stays logged in while it is
+/// used and expires after `SESSION_DAYS` without use.
 pub fn is_logged_in(cx: &Cx) -> bool {
     let auth = app_context::<Auth>(cx);
-    signed_cookies(cx)
-        .get(COOKIE)
-        .and_then(|cookie| cookie.value().parse::<u64>().ok())
-        .is_some_and(|issued| unix_now().saturating_sub(issued) < auth.session_days * 86_400)
+    let Some(issued) = signed_cookies(cx).get(COOKIE).and_then(|cookie| cookie.value().parse::<u64>().ok()) else {
+        return false;
+    };
+    if issued <= auth.logged_out_before.load(Ordering::Relaxed) {
+        return false;
+    }
+    let age = unix_now().saturating_sub(issued);
+    if age >= auth.session_days * 86_400 {
+        return false;
+    }
+    if age >= REFRESH_SECS {
+        start_session(cx);
+    }
+    true
 }
 
 /// Redirects to the login page unless the request is logged in; after
@@ -193,10 +236,14 @@ pub fn log_in(cx: &Cx, passphrase: &str) -> LoginResult {
 
 /// Sets the session cookie on this device.
 pub fn start_session(cx: &Cx) {
+    issue_cookie(cx, unix_now());
+}
+
+fn issue_cookie(cx: &Cx, issued: u64) {
     let auth = app_context::<Auth>(cx);
     let days = i64::try_from(auth.session_days).unwrap_or(365);
     signed_cookies(cx).add(
-        Cookie::build((COOKIE, unix_now().to_string()))
+        Cookie::build((COOKIE, issued.to_string()))
             .path("/")
             .http_only(true)
             .secure(true)
@@ -204,6 +251,20 @@ pub fn start_session(cx: &Cx) {
             .max_age(Duration::days(days))
             .build(),
     );
+}
+
+/// Logs out every device except this one: cookies issued up to now stop
+/// working, and this device gets one dated a second later. Saved first, so
+/// a failed write changes nothing.
+pub async fn log_out_others(cx: &Cx) -> io::Result<()> {
+    let auth = app_context::<Auth>(cx);
+    let now = unix_now();
+    let staging = auth.logged_out_file.with_extension("tmp");
+    tokio::fs::write(&staging, now.to_string()).await?;
+    tokio::fs::rename(&staging, &auth.logged_out_file).await?;
+    auth.logged_out_before.fetch_max(now, Ordering::Relaxed);
+    issue_cookie(cx, now + 1);
+    Ok(())
 }
 
 pub fn log_out(cx: &Cx) {
