@@ -13,7 +13,7 @@ use topcoat::{
 
 use crate::{
     auth::{self, LoginResult},
-    shell,
+    shell, signin,
 };
 
 #[page]
@@ -25,6 +25,7 @@ async fn page(cx: &Cx) -> Result<impl View> {
         query.split('&').find_map(|pair| pair.strip_prefix("next=")),
     )
     .to_owned();
+    let signin_stream = format!("@get('/signin?next={}', {{openWhenHidden: true}})", signin::percent_encode(&next));
 
     Ok(view! {
         shell(title: "Log in · PocketDrop",
@@ -40,6 +41,8 @@ async fn page(cx: &Cx) -> Result<impl View> {
                 }
                 <button>"Log in"</button>
             </form>
+            // Filled by a stream: a QR code and short code another device approves.
+            <div id="signin" data-init=(signin_stream)></div>
         )
     })
 }

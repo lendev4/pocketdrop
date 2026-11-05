@@ -118,7 +118,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 }
 .menu-panel p { margin: 0 0 0.2rem; font-size: 0.85rem; }
 .menu-panel form { margin: 0; }
-.menu-panel button { width: 100%; justify-content: flex-start; }
+.menu-panel button, .menu-panel a.button { width: 100%; justify-content: flex-start; box-sizing: border-box; }
 
 /* Send area */
 
@@ -267,3 +267,10 @@ button.more {
 }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 0.5rem); } }
 .menu-check { padding: 0.35rem 0.2rem 0.5rem; font-size: 0.9rem; }
+
+/* Login by approval */
+
+#signin { margin-top: 1.5rem; }
+.login-code { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.15em; color: var(--text, inherit); }
+.login-code-input { font-size: 1.4rem; letter-spacing: 0.15em; text-transform: uppercase; text-align: center; }
+.approve-buttons { display: flex; gap: 0.75rem; justify-content: center; }

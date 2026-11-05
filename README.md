@@ -12,7 +12,7 @@ Share something from any Android app and it shows up on your laptop immediately.
 - **Live:** every open page updates instantly when something arrives, over server-sent events.
 - **Files:** images, PDFs and documents up to 100 MB (configurable), with upload progress, retry, drag-and-drop and pasting screenshots with Ctrl+V.
 - **Expiry per drop:** until first use, 5 min to 7 days, or until deleted. Each device remembers its choice.
-- **QR pairing:** log in a new device by scanning a code instead of typing the passphrase.
+- **QR pairing:** log in a new device by scanning a code instead of typing the passphrase, in either direction: the new device can scan, or it shows a code your phone scans and approves.
 - **Terminal API:** send and fetch drops with `curl`.
 - **Large files:** above the limit, PocketDrop hands the file to [PairDrop](https://pairdrop.net) for a direct transfer and notifies your other devices.
 - **Light:** a single Rust binary, about 3 MB of memory, plain files on disk, no database.
@@ -30,6 +30,8 @@ The Railway Hobby plan's included usage is plenty: the app idles at a few MB of 
 **On Android:** open the site in Chrome, log in, then **⋮ → Install app** (or *Add to Home screen*). After that, **Share → PocketDrop** works from any app. Android stores the app's name, icon, colours and share settings at install time. After changing them, open `chrome://webapks` in Chrome and press **Update** for PocketDrop, or uninstall the app fully (long-press → **App info** → **Uninstall**; removing the home-screen icon is not enough) and install it again.
 
 **Adding more devices:** on a logged-in device, open **⋯ → Pair a device** and scan the QR code with the other device's camera. The link works once, for 5 minutes.
+
+**Logging in a desktop from your phone:** the login page shows a QR code and a short code below the passphrase field. Scan the QR code with your phone (or in PocketDrop on the phone open **⋯ → Enter a login code** and type the code), check that the code matches and tap **Approve**. The desktop logs in by itself. If the camera app opens the link in a browser where you aren't logged in, use **Enter a login code** inside the app instead.
 
 **On the desktop:** keep the page open in a tab. Type or paste text, press **Ctrl+V** anywhere to send the clipboard (text or a screenshot), or drag files onto the page. Installed as an app (Chrome, Edge or another Chromium browser: **Install PocketDrop** in the address bar or menu), it also appears under **Open with** in your file manager for common file types, such as images, PDFs, documents and archives. Chromium asks once for permission the first time.
 
