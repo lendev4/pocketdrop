@@ -26,7 +26,7 @@ use topcoat::{
     Result,
     context::{Cx, app_context},
     cookie::RouterBuilderCookieExt,
-    router::{BodyLimit, RouterBuilderDirectoryExt, TrustedProxies, module_router, page, tower::TowerLayer},
+    router::{BodyLimit, RouterBuilderDirectoryExt, TrustedProxies, module_router, page, request::uri, tower::TowerLayer},
     view::{Child, View, component, view},
 };
 
@@ -34,8 +34,9 @@ use crate::{auth::Auth, config::Config, pair::Pairing, signin::SignIns, store::S
 
 #[tokio::main]
 async fn main() {
-    let auth = Auth::from_env();
+    let mut auth = Auth::from_env();
     let config = Config::from_env();
+    auth.load_logged_out_before(&config.data_dir);
     let store = Arc::new(Store::open(&config).await.expect("cannot open data directory"));
     assets::init(Path::new("public"));
 
@@ -146,6 +147,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
     auth::require(cx)?;
     let config = config(cx);
     let max_file = config.max_file_bytes.to_string();
+    let others_logged_out = uri(cx).query().unwrap_or_default().split('&').any(|pair| pair == "others=out");
 
     Ok(view! {
         shell(title: "PocketDrop",
@@ -164,10 +166,16 @@ async fn home(cx: &Cx) -> Result<impl View> {
                         <form method="POST" action="/logout">
                             <button class="quiet">"Log out"</button>
                         </form>
+                        <form method="POST" action="/logout/others">
+                            <button class="quiet" data-confirm-tap="Tap again to log out other devices">"Log out other devices"</button>
+                        </form>
                     </div>
                 </details>
             </header>
             <div id="pair"></div>
+            if others_logged_out {
+                <p class="banner">"Every other device is logged out. This one stays logged in."</p>
+            }
 
             <p id="pending-share" class="banner" hidden="true">
                 "A share from your phone hasn't been sent yet. "
