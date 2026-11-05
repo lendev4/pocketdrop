@@ -1,4 +1,5 @@
 mod api;
+mod approve;
 mod assets;
 mod auth;
 mod config;
@@ -12,6 +13,7 @@ mod open;
 mod pair;
 mod send;
 mod share;
+mod signin;
 mod store;
 mod ui;
 
@@ -28,7 +30,7 @@ use topcoat::{
     view::{Child, View, component, view},
 };
 
-use crate::{auth::Auth, config::Config, pair::Pairing, store::Store};
+use crate::{auth::Auth, config::Config, pair::Pairing, signin::SignIns, store::Store};
 
 #[tokio::main]
 async fn main() {
@@ -76,6 +78,7 @@ async fn main() {
         .app_context(config)
         .app_context(store)
         .app_context(Pairing::default())
+        .app_context(SignIns::default())
         .public_dir("public")
         .build();
 
@@ -157,6 +160,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
                             " Send shares right away"
                         </label>
                         <button class="quiet" data-on:click="@post('/pair')" data-close-menu="true">"Pair a device"</button>
+                        <a class="button quiet" href="/approve">"Enter a login code"</a>
                         <form method="POST" action="/logout">
                             <button class="quiet">"Log out"</button>
                         </form>

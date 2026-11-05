@@ -153,7 +153,7 @@ async fn accept(cx: &Cx) -> Result<Response> {
 }
 
 /// This site's origin as the browser sees it, also behind Railway's proxy.
-fn origin(cx: &Cx) -> String {
+pub fn origin(cx: &Cx) -> String {
     let headers = headers(cx);
     let get = |name: &str| headers.get(name).and_then(|value| value.to_str().ok());
     let proto = get("x-forwarded-proto").unwrap_or("http");
@@ -161,7 +161,7 @@ fn origin(cx: &Cx) -> String {
     format!("{proto}://{host}")
 }
 
-fn qr_data_uri(text: &str) -> Result<String> {
+pub fn qr_data_uri(text: &str) -> Result<String> {
     let code = QrCode::new(text.as_bytes()).map_err(|error| std::io::Error::other(error.to_string()))?;
     let svg = code
         .render::<svg::Color<'_>>()

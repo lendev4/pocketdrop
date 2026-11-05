@@ -79,6 +79,7 @@ It is **not** an archive or an inbox to organise. Drops are short-lived and are 
 
 - **Log in:** enter the passphrase on the login page. A long-lived cookie is set (§6.1).
 - **Pair a device:** on a logged-in device choose **Pair device**. Scan the QR code with the other device and it's logged in (§6.2).
+- **Log in by approval:** the login page also shows a QR code and a short code. Scan it with a logged-in device, or type the code there under **⋯ → Enter a login code**, and approve; the waiting page logs in (§6.2a).
 - **Log out:** removes the cookie on that device only.
 - **Log out everywhere:** rotate `SESSION_SECRET` and redeploy (§6.1).
 
@@ -125,6 +126,17 @@ Every drop has one expiry rule, chosen when sending:
 4. Over SSE, the first device shows **"Device paired ✓"** and closes the QR code.
 
 Anyone who sees the QR code within those 5 minutes could pair a device. That's acceptable for a personal tool. Restarting the server invalidates any pending pairing tokens.
+
+### 6.2a Login by approval
+
+The reverse of §6.2, for a new device without a camera (a desktop).
+
+1. The login page opens an SSE stream (`GET /signin`). The server creates a random **request token** and a 6-character **short code**, keeps them in memory with the browser's description (from `User-Agent`), single-use, valid 5 minutes. At most 50 requests wait at once.
+2. The page shows a QR code for `https://<host>/approve/<token>` and the short code.
+3. A logged-in device opens the link (or types the code at `/approve`), sees the device description and the code, and chooses **Approve** or **Decline**.
+4. On approval the server creates a separate **claim token** (valid 60 s) and sends it only over the waiting page's stream. The page navigates to `/signin/<claim>`, which sets the login cookie.
+
+The QR code and short code alone never log anyone in: approval happens on a device that is already logged in, after comparing the code. The claim token never appears in the QR code.
 
 ### 6.3 API token (optional)
 
@@ -237,11 +249,15 @@ Live list, Copy, Delete, Clear all and the pairing dialog are Datastar attribute
 | `GET` | `/send` | Share confirm / send screen |
 | `POST` | `/pair` | Create a pairing token, returns the QR dialog |
 | `GET` | `/pair/:token` | Use a pairing token, sets the cookie |
+| `GET` | `/signin` | SSE: create a login request, show its QR code and short code, wait for approval |
+| `GET` | `/signin/:claim` | Use an approved login, sets the cookie |
+| `GET` / `POST` | `/approve` | Enter a short code / look it up |
+| `GET` / `POST` | `/approve/:token` | Approve or decline a waiting login |
 | `POST` | `/api/drops`, `GET` `/api/latest` | Bearer-token API (§6.3) |
 | `GET` | `/manifest.webmanifest`, `/sw.js`, `/icons/*` | PWA files, served from `public/` at the site root |
 | `GET` | `/healthz` | Health check for Railway |
 
-Every route except `/login`, `/pair/:token`, the PWA files and `/healthz` requires authentication.
+Every route except `/login`, `/pair/:token`, `/signin`, `/signin/:claim`, the PWA files and `/healthz` requires authentication.
 
 ## 12. Security checklist
 
