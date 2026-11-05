@@ -74,7 +74,7 @@ async fn confirm(cx: &Cx) -> Result<Response> {
                     <p><strong>(waiting.device.clone())</strong></p>
                     <p>"It shows the code"</p>
                     <code class="login-code">(signin::display_code(&waiting.code))</code>
-                    <p class="muted">"Approve only if this is your device and it shows the same code."</p>
+                    <p class="muted">"Approve only a device in front of you that shows this same code. If someone sent you this link, decline."</p>
                     <form method="POST" action=(format!("/approve/{}", waiting.token)) class="approve-buttons">
                         <button name="decision" value="approve" class="send-button">"Approve"</button>
                         <button name="decision" value="decline" class="quiet">"Decline"</button>
@@ -133,6 +133,9 @@ async fn decide(cx: &Cx, Form(form): Form<DecisionForm>) -> Result<Response> {
 fn html(rendered: String) -> Result<Response> {
     Ok(Response::builder()
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        // The Approve button must not be clickable inside another site's frame.
+        .header(header::X_FRAME_OPTIONS, "DENY")
+        .header("content-security-policy", "frame-ancestors 'none'")
         .body(Body::from(rendered))?)
 }
 

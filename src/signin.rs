@@ -8,6 +8,7 @@
 
 use std::{
     collections::HashMap,
+    net::IpAddr,
     sync::{Mutex, PoisonError},
     time::Duration,
 };
@@ -23,7 +24,7 @@ use topcoat::{
         Body,
         content::sse::{Event, Sse},
         path_param,
-        request::{headers, uri},
+        request::{client_ip, headers, uri},
         response::Response,
         route,
     },
@@ -37,6 +38,8 @@ const VALID_SECS: u64 = 5 * 60;
 const CLAIM_SECS: u64 = 60;
 /// Anyone can open the login page, so cap what that can make us remember.
 const MAX_PENDING: usize = 50;
+/// So one address can't take every slot.
+const MAX_PER_ADDRESS: usize = 3;
 /// Unambiguous characters for the short code: no 0/O, 1/I.
 const CODE_ALPHABET: &[u8; 32] = b"23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const CODE_LEN: usize = 6;
@@ -57,6 +60,7 @@ struct State {
 }
 
 struct Request {
+    ip: Option<IpAddr>,
     code: String,
     device: String,
     next: String,
@@ -88,6 +92,7 @@ pub enum Decision {
 impl SignIns {
     fn create(
         &self,
+        ip: Option<IpAddr>,
         device: String,
         next: String,
     ) -> std::result::Result<Option<(Waiting, Decided)>, getrandom::Error> {
@@ -95,7 +100,8 @@ impl SignIns {
         let now = unix_now();
         let mut state = self.lock();
         state.prune(now);
-        if state.pending.len() >= MAX_PENDING {
+        let from_address = state.pending.values().filter(|request| request.ip == ip).count();
+        if state.pending.len() >= MAX_PENDING || from_address >= MAX_PER_ADDRESS {
             return Ok(None);
         }
         let code = loop {
@@ -107,7 +113,7 @@ impl SignIns {
         let (decided, rx) = oneshot::channel();
         state.pending.insert(
             token.clone(),
-            Request { code: code.clone(), device: device.clone(), next, expires_at: now + VALID_SECS, decided },
+            Request { ip, code: code.clone(), device: device.clone(), next, expires_at: now + VALID_SECS, decided },
         );
         Ok(Some((Waiting { token, code, device }, rx)))
     }
@@ -176,7 +182,8 @@ impl SignIns {
 
 impl State {
     fn prune(&mut self, now: u64) {
-        self.pending.retain(|_, request| request.expires_at > now);
+        // A closed login page drops its receiver; its slot is free again.
+        self.pending.retain(|_, request| request.expires_at > now && !request.decided.is_closed());
         self.claims.retain(|_, claim| claim.expires_at > now);
     }
 }
@@ -195,7 +202,7 @@ async fn start(cx: &Cx) -> Result<Sse<impl Stream<Item = Result<Event>> + use<>>
     let user_agent = headers(cx).get(header::USER_AGENT).and_then(|value| value.to_str().ok()).unwrap_or_default();
 
     let created = app_context::<SignIns>(cx)
-        .create(describe_device(user_agent), next.clone())
+        .create(client_ip(cx), describe_device(user_agent), next.clone())
         .map_err(|error| std::io::Error::other(error.to_string()))?;
     let restart = format!("@get('/signin?next={}', {{openWhenHidden: true}})", percent_encode(&next));
 
@@ -378,7 +385,7 @@ mod tests {
     #[test]
     fn approved_login_can_be_claimed_once() {
         let sign_ins = SignIns::default();
-        let (waiting, mut rx) = sign_ins.create("Chrome on Linux".into(), "/send".into()).unwrap().unwrap();
+        let (waiting, mut rx) = sign_ins.create(None, "Chrome on Linux".into(), "/send".into()).unwrap().unwrap();
         assert_eq!(sign_ins.by_code(&display_code(&waiting.code).to_lowercase()).unwrap().token, waiting.token);
         assert!(sign_ins.decide(&waiting.token, Decision::Approved).unwrap());
         let claim = rx.try_recv().unwrap().unwrap();
@@ -391,8 +398,9 @@ mod tests {
     #[test]
     fn approving_after_the_page_left_fails() {
         let sign_ins = SignIns::default();
-        let (waiting, rx) = sign_ins.create("Firefox".into(), "/".into()).unwrap().unwrap();
+        let (waiting, rx) = sign_ins.create(None, "Firefox".into(), "/".into()).unwrap().unwrap();
         drop(rx);
+        assert!(sign_ins.by_token(&waiting.token).is_none());
         assert!(!sign_ins.decide(&waiting.token, Decision::Approved).unwrap());
         assert!(sign_ins.lock().claims.is_empty());
     }
@@ -400,18 +408,26 @@ mod tests {
     #[test]
     fn declining_sends_none() {
         let sign_ins = SignIns::default();
-        let (waiting, mut rx) = sign_ins.create("Firefox".into(), "/".into()).unwrap().unwrap();
+        let (waiting, mut rx) = sign_ins.create(None, "Firefox".into(), "/".into()).unwrap().unwrap();
         assert!(sign_ins.decide(&waiting.token, Decision::Declined).unwrap());
         assert_eq!(rx.try_recv().unwrap(), None);
     }
 
     #[test]
-    fn pending_requests_are_capped() {
+    fn pending_requests_are_capped_in_total_and_per_address() {
         let sign_ins = SignIns::default();
-        let receivers: Vec<_> =
-            (0..MAX_PENDING).map(|_| sign_ins.create("x".into(), "/".into()).unwrap().unwrap().1).collect();
-        assert!(sign_ins.create("x".into(), "/".into()).unwrap().is_none());
-        drop(receivers);
+        let ip = |n: u8| Some(IpAddr::from([203, 0, 113, n]));
+        let mut receivers: Vec<_> = (0..MAX_PER_ADDRESS)
+            .map(|_| sign_ins.create(ip(1), "x".into(), "/".into()).unwrap().unwrap().1)
+            .collect();
+        assert!(sign_ins.create(ip(1), "x".into(), "/".into()).unwrap().is_none());
+        for n in 0..u8::try_from(MAX_PENDING - MAX_PER_ADDRESS).unwrap() {
+            receivers.push(sign_ins.create(ip(100 + n), "x".into(), "/".into()).unwrap().unwrap().1);
+        }
+        assert!(sign_ins.create(ip(2), "x".into(), "/".into()).unwrap().is_none());
+        // Closing a waiting page frees its slot.
+        receivers.pop();
+        assert!(sign_ins.create(ip(2), "x".into(), "/".into()).unwrap().is_some());
     }
 
     #[test]
