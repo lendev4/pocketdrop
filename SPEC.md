@@ -110,7 +110,7 @@ Every drop has one expiry rule, chosen when sending:
 ### 6.1 Passphrase plus signed cookie
 
 - The `PASSPHRASE` environment variable holds the only password.
-- A successful login sets a cookie signed with `SESSION_SECRET`, valid for `SESSION_DAYS` (default 365).
+- A successful login sets a cookie signed with `SESSION_SECRET`, valid for `SESSION_DAYS` (default 365). The login rolls: when a device uses a cookie older than a day, the server re-issues it, so a device stays logged in while it's used and is logged out after `SESSION_DAYS` without use.
   - Flags: `HttpOnly`, `Secure`, `SameSite=Lax`.
   - Nothing is stored server-side. The server only checks the signature and age.
 - **Forged requests from other sites:** every state-changing request must have an `Origin` header matching the site, plus `SameSite`.

@@ -21,6 +21,8 @@ use topcoat::{
 use crate::store::unix_now;
 
 const COOKIE: &str = "pd_session";
+/// At most one cookie re-issue per device and day.
+const REFRESH_SECS: u64 = 86_400;
 
 pub struct Auth {
     pub key: Key,
@@ -96,12 +98,22 @@ impl Auth {
     }
 }
 
+/// Checks the login cookie. Logins roll: a valid cookie older than
+/// [`REFRESH_SECS`] is re-issued, so a device stays logged in while it is
+/// used and expires after `SESSION_DAYS` without use.
 pub fn is_logged_in(cx: &Cx) -> bool {
     let auth = app_context::<Auth>(cx);
-    signed_cookies(cx)
-        .get(COOKIE)
-        .and_then(|cookie| cookie.value().parse::<u64>().ok())
-        .is_some_and(|issued| unix_now().saturating_sub(issued) < auth.session_days * 86_400)
+    let Some(issued) = signed_cookies(cx).get(COOKIE).and_then(|cookie| cookie.value().parse::<u64>().ok()) else {
+        return false;
+    };
+    let age = unix_now().saturating_sub(issued);
+    if age >= auth.session_days * 86_400 {
+        return false;
+    }
+    if age >= REFRESH_SECS {
+        start_session(cx);
+    }
+    true
 }
 
 /// Redirects to the login page unless the request is logged in; after

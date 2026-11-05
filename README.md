@@ -61,7 +61,7 @@ All settings are environment variables.
 |---|---|---|
 | `PASSPHRASE` | (required) | The login passphrase |
 | `SESSION_SECRET` | (required) | At least 64 random bytes; signs login cookies. Changing it logs out every device. |
-| `SESSION_DAYS` | `365` | How long a device stays logged in |
+| `SESSION_DAYS` | `365` | How long a device stays logged in without being used; each use (at most once a day) starts the period again |
 | `API_TOKEN` | unset | Enables the terminal API |
 | `DATA_DIR` | `data` (`/data` in Docker) | Where drops are stored |
 | `DEFAULT_EXPIRY` | `24h` (`once` in the template) | Preselected expiry for new devices |
